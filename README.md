@@ -49,7 +49,7 @@ Then edit `config.json` to include your own values:
 - `OPENAI_API_KEY` – Get this from https://platform.openai.com/
 - `PUSHOVER_TOKEN` / `PUSHOVER_USER` – From https://pushover.net/
 - `GATE_OPEN_URL` / `GATE_CLOSE_URL` – Your webhook endpoints
-- Edit the `CHATGPT_SYSTEM_PROMPT` if needed
+- Edit the `CHATGPT_SYSTEM_PROMPT` and pay attention to the very end where the bot can be asked for the location. This is safe where i live - you may want to remove it.
 
 3. **Run the installation script**
 
