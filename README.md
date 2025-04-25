@@ -6,7 +6,7 @@ GateGPT is an automated delivery assistant that listens for messages on WhatsApp
 
 ## Features
 
-- Intelligent GPT-4-based replies with courier-specific logic
+- Intelligent ChatGPT-based replies with courier-specific logic
 - Automatic gate open/close via Home Assistant webhooks
 - Voice message transcription using OpenAI Whisper
 - Pushover notifications
