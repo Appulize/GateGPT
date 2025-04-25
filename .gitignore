@@ -134,3 +134,10 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+.DS_Store
+temp_audio.ogg
+screenlog.0
+sftp-config.json
+config.json
+ignored-chats.json
+v*.js
