@@ -135,9 +135,11 @@ dist
 .yarn/install-state.gz
 .pnp.*
 .DS_Store
+
+# GateGPT
 temp_audio.ogg
 screenlog.0
 sftp-config.json
-config.json
+GateGPT/config.json
 ignored-chats.json
 v*.js

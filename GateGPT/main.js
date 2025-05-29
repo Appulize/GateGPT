@@ -1,5 +1,5 @@
 /*********************************************************************
- * This is GateGPT v0.7.0. Created by Maciej Swic on 2025-04-25.
+ * This is GateGPT Created by Maciej Swic on 2025-04-25.
  * Please see the LICENSE file.
 *********************************************************************/
 
@@ -11,6 +11,7 @@ const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
 const { OpenAI } = require('openai');
+const express = require('express');
 
 let CONFIG = require('./config.json');
 const CONFIG_PATH = path.resolve(__dirname, 'config.json');
@@ -18,6 +19,17 @@ const CONFIG_PATH = path.resolve(__dirname, 'config.json');
 function getConfig(key, defaultValue = undefined) {
     return process.env[key] || CONFIG[key] || defaultValue;
 }
+
+// Tiny webserver for QR code
+const app = express();
+app.get('/qr.png', (req, res) => res.sendFile(process.env.QR_PATH));
+app.get('/', (req, res) =>
+  res.send(`<html><body>
+    <h2>Scan to log in</h2>
+    <img src="qr.png" style="width:300px;height:300px" />
+    <script>setTimeout(()=>location.reload(),5000)</script>
+  </body></html>`));
+app.listen(3000);
 
 // Watch for config file changes
 fs.watchFile(CONFIG_PATH, { interval: 1000 }, (curr, prev) => {
@@ -130,6 +142,7 @@ let lastQrNotification = 0;
 function initClient() {
     client.on('qr', async qr => {
         qrcodeTerminal.generate(qr, { small: true });
+        qrcode.toFile(process.env.QR_PATH, qr, { type: 'png' });
 
         const now = Date.now();
         if (now - lastQrNotification > 4 * 60 * 60 * 1000) {

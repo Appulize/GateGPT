@@ -1,0 +1,46 @@
+configuration:
+  GATE_OPEN_URL:
+    name: Gate-open webhook
+    description: URL that is POSTed when the courier should be let in.
+  GATE_CLOSE_URL:
+    name: Gate-close webhook
+    description: URL that is POSTed after the auto-close delay.
+  OPENAI_API_KEY:
+    name: OpenAI API key
+    description: Secret key used to call OpenAI.
+  PUSHOVER_TOKEN:
+    name: Pushover app token
+    description: Your Pushover application token for push notifications.
+  PUSHOVER_USER:
+    name: Pushover user key
+    description: The user key that receives Pushover messages.
+  RESPONSE_DELAY_MS:
+    name: Response delay (ms)
+    description: Milliseconds to wait before the bot answers a courier.
+  AUTO_CLOSE_DELAY_MS:
+    name: Auto-close delay (ms)
+    description: How long the gate stays open before the close webhook fires.
+  MAX_MESSAGES_PER_HOUR:
+    name: Rate limit (msgs per hour)
+    description: Maximum WhatsApp replies the bot may send in any rolling hour. Per conversation.
+  IGNORE_FILE:
+    name: Ignore-list file
+    description: JSON file where chat IDs to be ignored are stored.
+  TRIGGER_KEYWORDS:
+    name: Trigger keywords / regex
+    description: Words or regex patterns that flag a message as a delivery attempt.
+  CHATGPT_MODEL:
+    name: ChatGPT model
+    description: OpenAI model name the bot should use.
+  CHATGPT_SYSTEM_PROMPT:
+    name: ChatGPT system prompt
+    description: System prompt injected into every OpenAI request; tweak the bot’s personality here.
+  MESSAGE_CALL:
+    name: Call-rejection message
+    description: WhatsApp text sent when someone voice-calls instead of messaging.
+  MESSAGE_GATE_OPEN:
+    name: Gate-open instruction
+    description: Message sent right after the gate is opened for the courier.
+  MESSAGE_GATE_FAILED:
+    name: Gate-failed message
+    description: Message sent when the gate cannot be opened.
