@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# release.sh – bump version, tag, push, build, publish
-# Handles tag style v0.8.2   and plain 0.8.2 inside files.
-
 set -euo pipefail
 
 DOCKER_REPO="maciekish/gategpt"
@@ -10,18 +7,15 @@ EXCLUDE_DIRS="\\.git|vendor|node_modules|GateGPT/node_modules"
 # 1. Detect current version (Git tag) and plain string
 OLD_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
 OLD_VER=${OLD_TAG#v}
-echo "Current version: $OLD_TAG  (plain: $OLD_VER)"
+echo "Current version: $OLD_TAG"
 
 # 2. Ask for the next version, accept with/without leading v
-read -rp "Enter new version (X.Y.Z or vX.Y.Z): " INPUT
+read -rp "Enter new version (vX.Y.Z): " INPUT
 if [[ $INPUT =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
   NEW_VER="${BASH_REMATCH[1]}"
   NEW_TAG="v$NEW_VER"
-elif [[ $INPUT =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  NEW_VER="$INPUT"
-  NEW_TAG="v$NEW_VER"
 else
-  echo "❌  Format must be 1.2.3 or v1.2.3"; exit 1
+  echo "❌  Format must be v1.2.3"; exit 1
 fi
 echo "Release will be tagged as $NEW_TAG and files updated to $NEW_VER"
 
