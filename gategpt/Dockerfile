@@ -13,7 +13,7 @@ RUN apk add --no-cache \
       chromium nss freetype ttf-freefont harfbuzz \
       ca-certificates nodejs npm python3 make g++
 
-COPY rootfs/ /
+COPY --chmod=0755 rootfs/ /
 WORKDIR /opt/gategpt
 COPY GateGPT/ .
 
