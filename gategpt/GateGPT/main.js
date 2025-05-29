@@ -17,7 +17,17 @@ let CONFIG = require('./config.json');
 const CONFIG_PATH = path.resolve(__dirname, 'config.json');
 
 function getConfig(key, defaultValue = undefined) {
-    return process.env[key] || CONFIG[key] || defaultValue;
+  const fromEnv = process.env[key];
+
+  if (fromEnv !== undefined) {
+    if (key === 'TRIGGER_KEYWORDS') {
+      return fromEnv.split(/[,]+/).map(s => s.trim()).filter(Boolean)
+    }
+
+    return fromEnv;
+  }
+
+  return CONFIG[key] ?? defaultValue;
 }
 
 // Tiny webserver for QR code
