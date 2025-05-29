@@ -15,6 +15,7 @@ const express = require('express');
 
 let CONFIG = require('./config.json');
 const CONFIG_PATH = path.resolve(__dirname, 'config.json');
+const QR_PNG_PATH = path.join(__dirname, 'qr.png');
 
 function getConfig(key, defaultValue = undefined) {
   const fromEnv = process.env[key];
@@ -32,7 +33,7 @@ function getConfig(key, defaultValue = undefined) {
 
 // Tiny webserver for QR code
 const app = express();
-app.get('/qr.png', (req, res) => res.sendFile(process.env.QR_PATH));
+app.get('/qr.png', (req, res) => res.sendFile(QR_PNG_PATH));
 app.get('/', (req, res) =>
   res.send(`<html><body>
     <h2>Scan to log in</h2>
@@ -152,7 +153,7 @@ let lastQrNotification = 0;
 function initClient() {
     client.on('qr', async qr => {
         qrcodeTerminal.generate(qr, { small: true });
-        qrcode.toFile(process.env.QR_PATH, qr, { type: 'png' });
+        await qrcode.toFile(QR_PNG_PATH, qr, { type: 'png' });
 
         const now = Date.now();
         if (now - lastQrNotification > 4 * 60 * 60 * 1000) {
