@@ -34,6 +34,8 @@ git push && git push --tags
 echo "🐳 Building & pushing Docker images…"
 docker run --privileged --rm tonistiigi/binfmt:latest
 export VERSION="$NEW_VER"
+docker buildx rm gategptbuilder
+docker buildx create --name gategptbuilder --use
 docker buildx bake --push
 docker buildx bake default --metadata-file /tmp/meta.json --push
 
