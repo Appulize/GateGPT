@@ -1,4 +1,5 @@
 {
   "name": "GateGPT add-on",
-  "url": "https://github.com/appulize/GateGPT"
+  "url": "https://github.com/appulize/GateGPT",
+  "maintainer": "Maciej Swic <maciej@swic.name>"
 }
