@@ -29,7 +29,18 @@ GateGPT is an automated delivery assistant that listens for messages on WhatsApp
 
 ---
 
-## Installation
+## Installation with Hass.io
+
+1. In the Add-on Store, click the three dots in the upper right and select "Repositories"
+2. Add this url as a repository https://github.com/Appulize/GateGPT
+3. You can now install GateGPT as an addon.
+4. Go to the addon page and click the Configuration tab and enter all the required details
+5. Go back to the first tab and click "Start".
+6. Go to the "Log" tab and scan the QR code with WhatsApp (Link Device).
+
+---
+
+## Installation without Home Assistant
 
 1. **Clone the repository**
 
