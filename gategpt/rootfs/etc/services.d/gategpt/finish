@@ -1,4 +1,4 @@
-#!/usr/bin/with-contenv bash
+#!/usr/bin/env bash
 # Called by s6 when the service receives a SIGTERM/SIGINT
 # or when the container is stopping.
 

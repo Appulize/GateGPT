@@ -1,7 +1,10 @@
 # syntax=docker/dockerfile:1.6
 
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.19   # <— valid default
-FROM ${BUILD_FROM}
+FROM ghcr.io/home-assistant/amd64-base:3.19    AS base_amd64
+FROM ghcr.io/home-assistant/aarch64-base:3.19  AS base_arm64
+
+ARG TARGETARCH
+FROM base_${TARGETARCH}                        AS final
 
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
     PUPPETEER_SKIP_DOWNLOAD=true
