@@ -20,6 +20,11 @@ GateGPT is an automated delivery assistant that listens for messages on WhatsApp
 
 ## Requirements
 
+
+- A Home Assistant Operating System installation
+
+**OR**
+
 - Linux server with `systemd`
 - Node.js **v18+** installed and available in your `$PATH`
 - WhatsApp account (must scan QR code on first login)
@@ -29,7 +34,7 @@ GateGPT is an automated delivery assistant that listens for messages on WhatsApp
 
 ---
 
-## Installation with Hass.io
+## Installation with Home Assistant Operating System
 
 1. In the Add-on Store, click the three dots in the upper right and select "Repositories"
 2. Add this url as a repository https://github.com/Appulize/GateGPT
