@@ -1,4 +1,5 @@
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.19
+ARG TARGETARCH
+ARG BUILD_FROM=ghcr.io/home-assistant/${TARGETARCH}-base:3.19
 FROM ${BUILD_FROM}
 
 # Install Node and build tools

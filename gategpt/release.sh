@@ -32,6 +32,7 @@ git push && git push --tags
 
 # 5. Multi-arch build & push to Docker Hub
 echo "🐳 Building & pushing Docker images…"
+docker run --privileged --rm tonistiigi/binfmt:latest
 export VERSION="$NEW_VER"
 docker buildx bake --push
 
