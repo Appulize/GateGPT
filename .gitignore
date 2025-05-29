@@ -140,6 +140,6 @@ dist
 temp_audio.ogg
 screenlog.0
 sftp-config.json
-GateGPT/config.json
+gategpt/GateGPT/config.json
 ignored-chats.json
 v*.js

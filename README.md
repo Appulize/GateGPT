@@ -35,7 +35,7 @@ GateGPT is an automated delivery assistant that listens for messages on WhatsApp
 
 ```bash
 git clone https://github.com/Appulize/GateGPT.git
-cd GateGPT/GateGPT
+cd GateGPT/gategpt/GateGPT
 ```
 
 2. **Copy and configure settings**
