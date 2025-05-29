@@ -15,8 +15,8 @@ COPY rootfs/ /
 WORKDIR /opt/gategpt
 COPY GateGPT/ .
 
-RUN --mount=type=cache,id=gategpt-npm,target=/tmp/.npm \
-    npm ci --production --omit=dev && \
+RUN --mount=type=cache,id=gategpt-npm-${TARGETARCH},target=/tmp/.npm \
+    npm ci --production --omit=dev --no-progress && \
     npm cache clean --force
 ENV NODE_ENV=production
 
