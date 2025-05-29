@@ -15,7 +15,7 @@
   "panel_icon": "mdi:garage",
   "ports": { "3000/tcp": 3000 },
   "ports_description": { "3000/tcp": "Ingress web UI" },
-  "map": ["ssl:ro", "share:rw"],
+  "map": ["ssl:ro", "share:rw", "data:rw"],
   "options": {
     "GATE_OPEN_URL": "",
     "GATE_CLOSE_URL": "",

@@ -22,6 +22,7 @@ RUN npm ci --production --omit=dev --no-progress \
  && npm cache clean --force
 
 ENV NODE_ENV=production
+ENV SESSION_DIR=/data
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "main.js"]

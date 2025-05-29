@@ -16,6 +16,7 @@ const express = require('express');
 let CONFIG = require('./config.json');
 const CONFIG_PATH = path.resolve(__dirname, 'config.json');
 const QR_PNG_PATH = path.join(__dirname, 'qr.png');
+const SESSION_DIR = path.join(getConfig('SESSION_DIR', __dirname), 'whatsapp-auth');
 
 function getConfig(key, defaultValue = undefined) {
   const fromEnv = process.env[key];
@@ -56,7 +57,9 @@ fs.watchFile(CONFIG_PATH, { interval: 1000 }, (curr, prev) => {
 
 const openai = new OpenAI({ apiKey: getConfig('OPENAI_API_KEY') });
 const client = new Client({
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth({
+        dataPath: SESSION_DIR
+    }),
     puppeteer: { args: ['--no-sandbox', '--disable-setuid-sandbox'] },
 });
 
