@@ -1,5 +1,5 @@
 /*********************************************************************
- * This is GateGPT v0.8.18 first created by Maciej Swic on 2025-04-25.
+ * This is GateGPT v0.8.16 first created by Maciej Swic on 2025-04-25.
  * Please see the LICENSE file.
 *********************************************************************/
 
@@ -33,47 +33,14 @@ function getConfig(key, defaultValue = undefined) {
 
 // Tiny webserver for QR code
 const app = express();
-app.get('/log.txt', (req, res) => {
-  const ordered = [...logs.slice(idx), ...logs.slice(0, idx)]
-                    .filter(Boolean)
-                    .join('\n');
-  res.type('text/plain').send(ordered || 'No logs yet…');
-});
 app.get('/qr.png', (req, res) => res.sendFile(QR_PNG_PATH));
-app.get('/', (req, res) => res.send(`
-<!DOCTYPE html><meta charset="utf-8">
-<title>GateGPT login</title>
-<style>
- body{font-family:system-ui;margin:20px}
- pre{background:#111;color:#0f0;padding:12px;white-space:pre-wrap;
-     max-height:300px;overflow:auto;border-radius:6px}
-</style>
-<h2>Scan to log in</h2>
-<img src="qr.png" width="300" height="300"><br>
-<pre id="tail">Loading log…</pre>
-<script>
-async function load(){
-  const txt = await fetch('log.txt?'+Date.now()).then(r=>r.text());
-  document.getElementById('tail').textContent = txt;
-}
-load(); setInterval(load, 5000);
-</script>
-`));
+app.get('/', (req, res) =>
+  res.send(`<html><body>
+    <h2>Scan to log in</h2>
+    <img src="qr.png" style="width:300px;height:300px" />
+    <script>setTimeout(()=>location.reload(),5000)</script>
+  </body></html>`));
 app.listen(3000);
-
-const LOG_SIZE = 50;
-const logs = new Array(LOG_SIZE);
-let idx = 0;
-
-function add(line) {
-  logs[idx] = `${new Date().toISOString()}  ${line}`;
-  idx = (idx + 1) % LOG_SIZE;
-}
-
-['log', 'warn', 'error', 'info'].forEach(fn => {
-  const orig = console[fn].bind(console);
-  console[fn] = (...a) => { add(a.map(String).join(' ')); orig(...a); };
-});
 
 // Watch for config file changes
 fs.watchFile(CONFIG_PATH, { interval: 1000 }, (curr, prev) => {

@@ -12,7 +12,7 @@
   "host_pid": false,
   "ingress": true,
   "ingress_port": 3000,
-  "panel_icon": "mdi:qrcode-scan",
+  "panel_icon": "mdi:garage",
   "ports": { "3000/tcp": 3000 },
   "ports_description": { "3000/tcp": "Ingress web UI" },
   "map": ["ssl:ro", "share:rw"],
