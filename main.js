@@ -95,9 +95,20 @@ async function askChatGPT(messages) {
     return choices[0].message.content;
 }
 
+let lastQrNotification = 0;
+
 function initClient() {
-    client.on('qr', qr => qrcode.generate(qr, { small: true }));
+    client.on('qr', qr => {
+        qrcode.generate(qr, { small: true });
+
+        const now = Date.now();
+        if (now - lastQrNotification > 4 * 60 * 60 * 1000) {
+            sendPushoverNotification('GateGPT', '🔑 Session expired — please scan the new QR code');
+            lastQrNotification = now;
+        }
+    });
     client.once('ready', () => {
+        lastQrNotification = 0;
         sendPushoverNotification('GateGPT', '✅ GateGPT is ready!');
     });
     client.on('incoming_call', async call => {
