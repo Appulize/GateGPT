@@ -13,7 +13,7 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
 
 RUN apk add --no-cache \
       chromium nss freetype ttf-freefont harfbuzz \
-      ca-certificates nodejs npm python3 make g++
+      ca-certificates nodejs npm python3 make g++ tini
 
 COPY --chmod=0755 rootfs/ /
 WORKDIR /opt/gategpt
@@ -24,5 +24,5 @@ RUN npm ci --production --omit=dev --no-progress \
 
 ENV NODE_ENV=production
 
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "main.js"]
