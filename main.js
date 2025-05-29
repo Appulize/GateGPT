@@ -4,8 +4,10 @@
 *********************************************************************/
 
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
+const qrcode = require('qrcode')
+const qrcodeTerminal = require('qrcode-terminal');
 const axios = require('axios');
+const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
 const { OpenAI } = require('openai');
@@ -63,18 +65,46 @@ async function transcribeWithWhisper(filePath) {
     return text;
 }
 
-async function sendPushoverNotification(title, message) {
-    try {
-        await axios.post('https://api.pushover.net/1/messages.json', {
-            token: getConfig('PUSHOVER_TOKEN'),
-            user: getConfig('PUSHOVER_USER'),
-            title,
-            message
-        });
-        console.log(`${title}: ${message}`);
-    } catch (err) {
-        console.error('❌ Pushover failed:', err.message);
+/**
+ * Send a push notification via Pushover.
+ * @param {string} title   The message title.
+ * @param {string} message The message body.
+ * @param {object} [opts]  Optional file attachment.
+ *   opts.attachment   → Buffer | Readable
+ *   opts.filename     → string (default: "file")
+ *   opts.contentType  → string (default inferred by Pushover)
+ */
+async function sendPushoverNotification(title, message, opts = {}) {
+  const { attachment, filename = 'file', contentType } = opts;
+
+  try {
+    if (attachment) {
+      /* ---------- multipart/form-data branch (image, etc.) -------- */
+      const form = new FormData();
+      form.append('token', getConfig('PUSHOVER_TOKEN'));
+      form.append('user',  getConfig('PUSHOVER_USER'));
+      form.append('title', title);
+      form.append('message', message);
+      form.append('attachment', attachment, { filename, contentType });
+
+      await axios.post('https://api.pushover.net/1/messages.json', form, {
+        headers: form.getHeaders(),
+        maxBodyLength: Infinity
+      });
+    } else {
+      /* ---------- simple JSON branch (no file) -------------------- */
+      await axios.post('https://api.pushover.net/1/messages.json', {
+        token: getConfig('PUSHOVER_TOKEN'),
+        user:  getConfig('PUSHOVER_USER'),
+        title,
+        message
+      });
     }
+
+    console.log(`${title}: ${message}`);
+  } catch (err) {
+    console.error('❌ Pushover failed:', err.message);
+  }
 }
 
 async function askChatGPT(messages) {
@@ -98,12 +128,13 @@ async function askChatGPT(messages) {
 let lastQrNotification = 0;
 
 function initClient() {
-    client.on('qr', qr => {
-        qrcode.generate(qr, { small: true });
+    client.on('qr', async qr => {
+        qrcodeTerminal.generate(qr, { small: true });
 
         const now = Date.now();
         if (now - lastQrNotification > 4 * 60 * 60 * 1000) {
-            sendPushoverNotification('GateGPT', '🔑 Session expired — please scan the new QR code');
+            const png = await qrcode.toBuffer(qr, { type: 'png' });
+            await sendPushoverNotification('GateGPT', '🔑 Session expired — please scan the new QR code', {attachment: png, filename: 'qr.png', contentType: 'image/png'});
             lastQrNotification = now;
         }
     });
