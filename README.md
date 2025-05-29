@@ -20,17 +20,16 @@ GateGPT is an automated delivery assistant that listens for messages on WhatsApp
 
 ## Requirements
 
-
-- A Home Assistant Operating System installation
-
-**OR**
-
-- Linux server with `systemd`
-- Node.js **v18+** installed and available in your `$PATH`
 - WhatsApp account (must scan QR code on first login)
 - Pushover account (for notifications)
 - OpenAI API key (for GPT-4.0 and Whisper)
 - Home Assistant webhook URLs (or equivalent endpoints for gate control)
+
+**AND**
+
+- A Home Assistant Operating System installation
+**OR**
+- Linux server with `systemd`
 
 ---
 
