@@ -15,14 +15,11 @@ read -rp "Enter new version tag (format vX.Y.Z): " NEW_TAG
 [[ $NEW_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] \
   || { echo "❌  Tag must look like v1.2.3"; exit 1; }
 
-# 3. Replace everywhere (portable Perl inline; sed -i differs on macOS/GNU)
+# 3. Replace in every tracked file (skip big vendor dirs)
 echo "🔄  Replacing $OLD_TAG → $NEW_TAG in source tree…"
-OLD_ESC=$(printf '%s' "$OLD_TAG" | perl -pe 's/[][\/.^$*+?{}()|]/\\$&/g')
-NEW_ESC=$(printf '%s' "$NEW_TAG" | perl -pe 's/\\/\\\\/g')
-
-git ls-files -z | grep -vzE "$EXCLUDE_DIRS" \
-  | xargs -0 perl -pi -e "s/$OLD_ESC/$NEW_ESC/g"
-
+git ls-files -z | grep -vzE "$EXCLUDE_DIRS" |
+  xargs -0 perl -pi -e "s/\Q$OLD_TAG\E/$NEW_TAG/g"
+  
 # 4. Commit + tag + push
 git add -u
 git commit -m "🔖 Bump version to $NEW_TAG"
