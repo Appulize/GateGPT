@@ -35,6 +35,7 @@ echo "🐳 Building & pushing Docker images…"
 docker run --privileged --rm tonistiigi/binfmt:latest
 export VERSION="$NEW_VER"
 docker buildx bake --push
+docker buildx bake default --metadata-file /tmp/meta.json --push
 
 echo -e "\n✅ Release $NEW_TAG completed!"
 echo "  • GitHub tag pushed"
