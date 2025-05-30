@@ -2,6 +2,8 @@
 
 GateGPT is an automated delivery assistant that listens for messages on WhatsApp Web and responds to couriers using ChatGPT. It can intelligently open a smart gate and notify you of deliveries, using Pushover for alerts and Whisper for voice transcription.
 
+Warning! The WhatsApp TOS prohibits the use of bots on personal accounts. GateGPT has rate limiting and is used with good intention, so i haven't had any issues, but YMMV. You have been warned.
+
 ---
 
 ## Features
