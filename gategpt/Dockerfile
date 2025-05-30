@@ -18,7 +18,7 @@ RUN apk add --no-cache \
 WORKDIR /opt/gategpt
 COPY GateGPT/ .
 
-RUN npm ci --production --omit=dev --no-progress \
+RUN npm ci --omit=dev --no-progress \
  && npm cache clean --force
 
 ENV NODE_ENV=production
