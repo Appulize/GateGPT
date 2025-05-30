@@ -1,5 +1,5 @@
 /*********************************************************************
- * This is GateGPT v0.8.16 first created by Maciej Swic on 2025-04-25.
+ * This is GateGPT v0.9.2 first created by Maciej Swic on 2025-04-25.
  * Please see the LICENSE file.
 *********************************************************************/
 
@@ -15,8 +15,11 @@ const express = require('express');
 
 let CONFIG = require('./config.json');
 const CONFIG_PATH = path.resolve(__dirname, 'config.json');
-const QR_PNG_PATH = path.join(__dirname, 'qr.png');
+const DATA_DIR = getConfig('SESSION_DIR', __dirname);
+fs.mkdirSync(DATA_DIR, { recursive: true });
+const QR_PNG_PATH = path.join(DATA_DIR, 'qr.png');
 const SESSION_DIR = path.join(getConfig('SESSION_DIR', __dirname), 'whatsapp-auth');
+fs.mkdirSync(SESSION_DIR, { recursive: true });
 
 function getConfig(key, defaultValue = undefined) {
   const fromEnv = process.env[key];
@@ -65,10 +68,11 @@ const client = new Client({
 
 const conversations = new Map();
 let ignoredChats = new Set();
+const ignorePath = path.join(DATA_DIR, getConfig('IGNORE_FILE', 'ignored-chats.json'));
 
 function loadIgnoreList() {
     try {
-        ignoredChats = new Set(JSON.parse(fs.readFileSync(getConfig('IGNORE_FILE', 'ignored-chats.json'), 'utf8')));
+        ignoredChats = new Set(JSON.parse(fs.readFileSync(ignorePath, 'utf8')));
         console.log(`🔕 Loaded ignored chats: ${[...ignoredChats].join(', ')}`);
     } catch {
         console.log('📁 No ignore list found, starting fresh.');
@@ -76,7 +80,7 @@ function loadIgnoreList() {
 }
 
 function saveIgnoreList() {
-    fs.writeFileSync(getConfig('IGNORE_FILE', 'ignored-chats.json'), JSON.stringify([...ignoredChats]));
+    fs.writeFileSync(ignorePath, JSON.stringify([...ignoredChats]));
 }
 
 function shouldTrigger(msg) {
@@ -209,7 +213,7 @@ async function handleMessage(message) {
     if (message.type === 'ptt') {
         const media = await message.downloadMedia();
         const binaryData = Buffer.from(media.data, 'base64');
-        const filePath = path.resolve(__dirname, 'temp_audio.ogg');
+        const filePath = path.resolve(DATA_DIR, 'temp_audio.ogg');
         fs.writeFileSync(filePath, binaryData);
         const transcription = await transcribeWithWhisper(filePath);
         if (!transcription) return;
