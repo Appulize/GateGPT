@@ -1,0 +1,11 @@
+# Ignore the runtime config & chat state
+gategpt/GateGPT/config.json
+gategpt/GateGPT/ignored-chats.json
+
+# Extras
+icon.org.png
+sftp-config.json
+node_modules
+.git
+*.log
+*.env
