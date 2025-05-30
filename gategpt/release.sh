@@ -36,7 +36,6 @@ docker run --privileged --rm tonistiigi/binfmt:latest
 export VERSION="$NEW_VER"
 docker buildx create --name gategptbuilder --use
 docker buildx bake --push
-docker buildx bake default --metadata-file /tmp/meta.json --push
 docker buildx rm gategptbuilder
 
 echo -e "\n✅ Release $NEW_TAG completed!"
