@@ -155,23 +155,12 @@ async function askChatGPT(messages) {
     return choices[0].message.content;
 }
 
-// Too many notifications
-//let lastQrNotification = 0;
-
 function initClient() {
     client.on('qr', async qr => {
         qrcodeTerminal.generate(qr, { small: true });
         await qrcode.toFile(QR_PNG_PATH, qr, { type: 'png' });
-
-        /*const now = Date.now();
-        if (now - lastQrNotification > 4 * 60 * 60 * 1000) {
-            const png = await qrcode.toBuffer(qr, { type: 'png' });
-            await sendPushoverNotification('GateGPT', '🔑 Session expired — please scan the new QR code', {attachment: png, filename: 'qr.png', contentType: 'image/png'});
-            lastQrNotification = now;
-        }*/
     });
     client.once('ready', () => {
-        //lastQrNotification = 0;
         sendPushoverNotification('GateGPT', '✅ GateGPT is ready!');
     });
     client.on('incoming_call', async call => {
