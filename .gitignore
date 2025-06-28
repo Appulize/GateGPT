@@ -143,3 +143,6 @@ sftp-config.json
 gategpt/GateGPT/config.json
 ignored-chats.json
 v*.js
+/gategpt/GateGPT/whatsapp-auth
+/gategpt/GateGPT/.wwebjs_cache
+gategpt/GateGPT/qr.png
