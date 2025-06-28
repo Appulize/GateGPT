@@ -4,7 +4,7 @@
 *********************************************************************/
 
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
-const qrcode = require('qrcode')
+const qrcode = require('qrcode');
 const qrcodeTerminal = require('qrcode-terminal');
 const axios = require('axios');
 const FormData = require('form-data');
@@ -26,7 +26,7 @@ function getConfig(key, defaultValue = undefined) {
 
   if (fromEnv !== undefined) {
     if (key === 'TRIGGER_KEYWORDS') {
-      return fromEnv.split(/[,]+/).map(s => s.trim()).filter(Boolean)
+      return fromEnv.split(/[,]+/).map(s => s.trim()).filter(Boolean);
     }
 
     return fromEnv;
