@@ -13,6 +13,19 @@ const path = require('path');
 const { OpenAI } = require('openai');
 const express = require('express');
 
+/* ──────────────────────────── ⏱  TIMESTAMP PATCH  ─────────────────────────── */
+(() => {
+  const pad = n => String(n).padStart(2, '0');
+  const ts  = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+  ['log', 'info', 'warn', 'error', 'debug'].forEach(method => {
+    const original = console[method].bind(console);
+    console[method] = (...args) => original(`[${ts()}]`, ...args);
+  });
+})();
+
 let CONFIG = require('./config.json');
 const CONFIG_PATH = path.resolve(__dirname, 'config.json');
 const DATA_DIR = getConfig('SESSION_DIR', __dirname);
