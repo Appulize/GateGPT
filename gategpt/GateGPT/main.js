@@ -26,8 +26,19 @@ const express = require('express');
   });
 })();
 
-let CONFIG = require('./config.json');
+/* ──────────────────────── 🔧  CONFIG FILE HANDLING  ───────────────────────── */
 const CONFIG_PATH = path.resolve(__dirname, 'config.json');
+const SAMPLE_CONFIG_PATH = path.resolve(__dirname, 'config.sample.json');
+if (!fs.existsSync(CONFIG_PATH)) {
+  try {
+    fs.copyFileSync(SAMPLE_CONFIG_PATH, CONFIG_PATH);
+    console.warn(`⚠️  config.json missing – copied default settings from config.sample.json`);
+  } catch (err) {
+    console.error('❌ Failed to create config.json from sample:', err.message);
+  }
+}
+let CONFIG = require(CONFIG_PATH);
+
 const DATA_DIR = getConfig('SESSION_DIR', __dirname);
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const QR_PNG_PATH = path.join(DATA_DIR, 'qr.png');
