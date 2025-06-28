@@ -106,6 +106,7 @@ async function transcribeWithWhisper(filePath) {
  */
 async function sendPushoverNotification(title, message, opts = {}) {
   const { attachment, filename = 'file', contentType } = opts;
+  const url = 'https://api.pushover.net/1/messages.json';
 
   try {
     if (attachment) {
@@ -117,23 +118,26 @@ async function sendPushoverNotification(title, message, opts = {}) {
       form.append('message', message);
       form.append('attachment', attachment, { filename, contentType });
 
-      await axios.post('https://api.pushover.net/1/messages.json', form, {
+      await axios.post(url, form, {
         headers: form.getHeaders(),
         maxBodyLength: Infinity
       });
     } else {
       /* ---------- simple JSON branch (no file) -------------------- */
-      await axios.post('https://api.pushover.net/1/messages.json', {
-        token: getConfig('PUSHOVER_TOKEN'),
-        user: getConfig('PUSHOVER_USER'),
-        title,
-        message
-      });
+      const params = new URLSearchParams();
+      params.append('token', getConfig('PUSHOVER_TOKEN'));
+      params.append('user', getConfig('PUSHOVER_USER'));
+      params.append('title', title);
+      params.append('message', message);
+
+      await axios.post(url, params); // axios sets the correct header automatically
     }
 
     console.log(`${title}: ${message}`);
   } catch (err) {
-    console.error('❌ Pushover failed:', err.message);
+    const code = err.response?.status ?? 'N/A';
+    const body = err.response?.data ?? err.message;
+    console.error(`❌ Pushover failed (HTTP ${code}):`, body);
   }
 }
 
