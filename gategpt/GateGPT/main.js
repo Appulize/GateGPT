@@ -26,6 +26,30 @@ const express = require('express');
   });
 })();
 
+/* ─────────────── 🏠  Home-Assistant options → ENV  ─────────────── */
+try {
+  const HA_OPTIONS_PATH = '/data/options.json';
+  if (fs.existsSync(HA_OPTIONS_PATH)) {
+    const opts = JSON.parse(fs.readFileSync(HA_OPTIONS_PATH, 'utf8'));
+
+    Object.entries(opts).forEach(([k, v]) => {
+      const key = String(k).toUpperCase();
+
+      // don’t clobber a value that’s already in the real env
+      if (process.env[key] === undefined) {
+        process.env[key] =
+          typeof v === 'object' ? JSON.stringify(v) : String(v);
+      }
+    });
+
+    console.log(
+      `🔧  Loaded ${Object.keys(opts).length} HA option(s) into env vars`
+    );
+  }
+} catch (err) {
+  console.warn('⚠️  Failed to read /data/options.json:', err.message);
+}
+
 /* ──────────────────────── 🔧  CONFIG FILE HANDLING  ───────────────────────── */
 const CONFIG_PATH = path.resolve(__dirname, 'config.json');
 const SAMPLE_CONFIG_PATH = path.resolve(__dirname, 'config.sample.json');
