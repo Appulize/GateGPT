@@ -1,4 +1,4 @@
-variable "VERSION" { default = "0.9.9" }
+variable "VERSION" { default = "0.9.10" }
 
 target "gategpt" {
   context    = "."
