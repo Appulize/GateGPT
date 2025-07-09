@@ -51,6 +51,11 @@
     "TRIGGER_KEYWORDS": "str",
     "CHATGPT_MODEL": "str",
     "CHATGPT_SYSTEM_PROMPT": "str",
+    "MESSAGE_LOCATION": "str",
+    "LOCATION_LAT": "float",
+    "LOCATION_LON": "float",
+    "LOCATION_TITLE": "str",
+    "LOCATION_SUBTITLE": "str",
     "MESSAGE_CALL": "str",
     "MESSAGE_GATE_OPEN": "str",
     "MESSAGE_GATE_FAILED": "str"
