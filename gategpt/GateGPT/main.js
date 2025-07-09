@@ -356,7 +356,9 @@ async function handleAIResponse(chat, convo, message) {
 
   if (trimmed.toLowerCase() === 'send_location') {
     try {
-      const location = new Location(getConfig('LOCATION_LAT'), getConfig('LOCATION_LON'), getConfig('LOCATION_TITLE'), getConfig('LOCATION_SUBTITLE'));
+      const lat = Number(getConfig('LOCATION_LAT'));
+      const lon = Number(getConfig('LOCATION_LON'));
+      const location = new Location(lat, lon, getConfig('LOCATION_TITLE'), getConfig('LOCATION_SUBTITLE'));
       await sendAuto(chat, location);
       await sendAuto(chat,
         getConfig(
