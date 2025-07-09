@@ -3,7 +3,7 @@
  * Please see the LICENSE file.
 *********************************************************************/
 
-const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia, Location } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const qrcodeTerminal = require('qrcode-terminal');
 const axios = require('axios');
@@ -334,7 +334,21 @@ async function handleAIResponse(chat, convo, message) {
   const response = await askChatGPT(convo.messages);
   const trimmed = response.trim();
 
-  if (trimmed.toLowerCase() === 'open_gate') {
+  if (trimmed.toLowerCase() === 'send_location') {
+    try {
+      const location = new Location(getConfig('LOCATION_LAT'), getConfig('LOCATION_LON'), getConfig('LOCATION_TITLE'), getConfig('LOCATION_SUBTITLE'));
+      await chat.sendMessage(location);
+      await chat.sendMessage(
+        getConfig(
+          'MESSAGE_LOCATION',
+          'Here is the location, please message me when you are outside.'
+        )
+      );
+    } catch (err) {
+      console.error('❌ Failed to send location:', err.message);
+      sendPushoverNotification('GateGPT', '❌ Failed to send location!');
+    }
+  } else if (trimmed.toLowerCase() === 'open_gate') {
     try {
       await axios.post(getConfig('GATE_OPEN_URL'), {});
       await chat.sendMessage(
