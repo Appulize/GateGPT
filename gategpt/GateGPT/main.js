@@ -79,9 +79,9 @@ const autoMsgIds = new Set();
  */
 async function sendAuto(chat, content, options = {}) {
   const msg = await chat.sendMessage(content, options);
-  autoMsgIds.add(msg.id._serialized);
+  autoMsgIds.add(msg?.id?._serialized);
   // Evict after an hour to avoid unbounded growth
-  setTimeout(() => autoMsgIds.delete(msg.id._serialized), 60 * 60 * 1000);
+  setTimeout(() => autoMsgIds.delete(msg?.id?._serialized), 60 * 60 * 1000);
   return msg;
 }
 
@@ -255,7 +255,7 @@ function initClient() {
 
 async function handleMessage(message) {
   // Ignore messages the bot itself sent
-  if (autoMsgIds.has(message.id._serialized)) return;
+  if (autoMsgIds.has(message?.id?._serialized)) return;
 
   const chat = await message.getChat();
   const chatId = chat.id._serialized;
