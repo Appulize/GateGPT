@@ -236,7 +236,7 @@ async function askChatGPT(messages) {
   });
 
   const { choices } = await openai.chat.completions.create({
-    model: getConfig('CHATGPT_MODEL', 'gpt-4o-mini'),
+    model: getConfig('CHATGPT_MODEL', 'gpt-4.1'),
     temperature: 0.5,
     messages: [
       {

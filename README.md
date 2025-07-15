@@ -24,7 +24,7 @@ Warning! The WhatsApp TOS prohibits the use of bots on personal accounts. GateGP
 
 - WhatsApp account (must scan QR code on first login)
 - Pushover account (for notifications)
-- OpenAI API key (for GPT-4.0 and Whisper)
+- OpenAI API key (for GPT-4.1 and Whisper)
 - Home Assistant webhook URLs (or equivalent endpoints for gate control)
 
 **AND**
