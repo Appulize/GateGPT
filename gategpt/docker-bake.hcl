@@ -1,4 +1,4 @@
-variable "VERSION" { default = "1.0.3" }
+variable "GATEGPT_VERSION" { default = "1.0.3" }
 
 target "gategpt" {
   context    = "."
@@ -8,7 +8,7 @@ target "gategpt" {
 
   push = true
   tags = [
-    "docker.io/maciekish/gategpt:${VERSION}",
+    "docker.io/maciekish/gategpt:${GATEGPT_VERSION}",
     "docker.io/maciekish/gategpt:latest"
   ]
 }
