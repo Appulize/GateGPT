@@ -2,8 +2,7 @@
 set -euo pipefail
 
 DOCKER_REPO="maciekish/gategpt"
-
-# Exclude dirs + any lock files from the blanket replace
+PKG_DIR="GateGPT"                        # <-- where package.json lives
 EXCLUDE_RE='\.git|vendor|node_modules|GateGPT/node_modules|package-lock\.json|yarn\.lock|pnpm-lock\.yaml'
 
 ##############################################################################
@@ -52,17 +51,15 @@ echo "Using version: $NEW_TAG"
 if [[ $BUILD_ONLY -eq 0 ]]; then
   echo "🔄 Updating version strings…"
 
-  # Update package.json cleanly (does NOT create a git tag)
-  cd GateGPT
+  # --- bump package.json + regenerate lock, but INSIDE $PKG_DIR ---
+  pushd "$PKG_DIR" >/dev/null
   npm version --no-git-tag-version "$NEW_VER"
-  cd ..
+  npm install --package-lock-only --omit=dev
+  popd >/dev/null
 
   # Replace remaining occurrences, skipping lock files
   git ls-files -z | grep -vzE "$EXCLUDE_RE" |
     xargs -0 perl -pi -e 's/\Q'"$OLD_TAG"'\E/'"$NEW_TAG"'/g; s/\Q'"$OLD_VER"'\E/'"$NEW_VER"'/g'
-
-  # Regenerate lock file so its metadata matches the new project version
-  npm install --package-lock-only --omit=dev
 
   git add -u
   git commit -m "🔖 Bump version to $NEW_TAG"
@@ -81,8 +78,7 @@ $DOCKER run --privileged --rm tonistiigi/binfmt:latest
 export GATEGPT_VERSION="$NEW_VER"
 export GATEGPT_TAG="$NEW_TAG"
 
-# Remove stale builder (ignore errors), then rebuild
-$DOCKER buildx rm gategptbuilder 2>/dev/null || true
+$DOCKER buildx rm gategptbuilder 2>/dev/null || true   # clean up if exists
 $DOCKER buildx create --name gategptbuilder --use
 $DOCKER buildx bake --push
 $DOCKER buildx rm gategptbuilder
