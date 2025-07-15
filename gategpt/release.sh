@@ -2,7 +2,9 @@
 set -euo pipefail
 
 DOCKER_REPO="maciekish/gategpt"
-EXCLUDE_DIRS="\\.git|vendor|node_modules|GateGPT/node_modules"
+
+# Exclude dirs + any lock files from the blanket replace
+EXCLUDE_RE='\.git|vendor|node_modules|GateGPT/node_modules|package-lock\.json|yarn\.lock|pnpm-lock\.yaml'
 
 ##############################################################################
 # Decide whether we need sudo for Docker
@@ -15,7 +17,7 @@ fi
 echo "Using Docker command: $DOCKER"
 
 ##############################################################################
-# 1. Detect current version (Git tag) and plain string
+# 1. Detect current version
 ##############################################################################
 OLD_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
 OLD_VER=${OLD_TAG#v}
@@ -45,12 +47,20 @@ fi
 echo "Using version: $NEW_TAG"
 
 ##############################################################################
-# 3. Replace strings, commit, tag, push (unless build-only)
+# 3. Update sources & lock file (unless build-only)
 ##############################################################################
 if [[ $BUILD_ONLY -eq 0 ]]; then
-  echo "🔄 Updating source tree…"
-  git ls-files -z | grep -vzE "$EXCLUDE_DIRS" |
+  echo "🔄 Updating version strings…"
+
+  # Update package.json cleanly (does NOT create a git tag)
+  npm version --no-git-tag-version "$NEW_VER"
+
+  # Replace remaining occurrences, skipping lock files
+  git ls-files -z | grep -vzE "$EXCLUDE_RE" |
     xargs -0 perl -pi -e 's/\Q'"$OLD_TAG"'\E/'"$NEW_TAG"'/g; s/\Q'"$OLD_VER"'\E/'"$NEW_VER"'/g'
+
+  # Regenerate lock file so its metadata matches the new project version
+  npm install --package-lock-only --omit=dev
 
   git add -u
   git commit -m "🔖 Bump version to $NEW_TAG"
@@ -61,18 +71,16 @@ else
 fi
 
 ##############################################################################
-# 4. Multi-arch build & push to Docker Hub
+# 4. Multi-arch build & push
 ##############################################################################
 echo "🐳 Building & pushing Docker images…"
 $DOCKER run --privileged --rm tonistiigi/binfmt:latest
 
-# Expose version info to docker-bake.hcl
 export GATEGPT_VERSION="$NEW_VER"
 export GATEGPT_TAG="$NEW_TAG"
 
-# ---- clean up any stale builder (ignore errors) ----
+# Remove stale builder (ignore errors), then rebuild
 $DOCKER buildx rm gategptbuilder 2>/dev/null || true
-
 $DOCKER buildx create --name gategptbuilder --use
 $DOCKER buildx bake --push
 $DOCKER buildx rm gategptbuilder
