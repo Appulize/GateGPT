@@ -53,7 +53,9 @@ if [[ $BUILD_ONLY -eq 0 ]]; then
   echo "🔄 Updating version strings…"
 
   # Update package.json cleanly (does NOT create a git tag)
+  cd GateGPT
   npm version --no-git-tag-version "$NEW_VER"
+  cd ..
 
   # Replace remaining occurrences, skipping lock files
   git ls-files -z | grep -vzE "$EXCLUDE_RE" |
