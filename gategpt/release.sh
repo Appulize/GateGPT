@@ -24,32 +24,44 @@ echo "Current version: $OLD_TAG"
 ##############################################################################
 # 2. Ask for the next version
 ##############################################################################
-read -rp "Enter new version (vX.Y.Z): " INPUT
-if [[ $INPUT =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+read -rp "Enter new version (vX.Y.Z) [leave blank to rebuild only]: " INPUT
+
+BUILD_ONLY=0
+if [[ -z $INPUT ]]; then
+  echo "⚙️  No version entered – build images only."
+  NEW_VER="$OLD_VER"
+  NEW_TAG="$OLD_TAG"
+  BUILD_ONLY=1
+elif [[ $INPUT =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
   NEW_VER="${BASH_REMATCH[1]}"
   NEW_TAG="v$NEW_VER"
+  if [[ "$NEW_TAG" == "$OLD_TAG" ]]; then
+    echo "⚙️  Same version as current – build images only."
+    BUILD_ONLY=1
+  fi
 else
   echo "❌ Format must be v1.2.3"; exit 1
 fi
-echo "Release will be tagged as $NEW_TAG and files updated to $NEW_VER"
+echo "Using version: $NEW_TAG"
 
 ##############################################################################
-# 3. Replace OLD_TAG→NEW_TAG and OLD_VER→NEW_VER in every tracked file
+# 3. Replace strings, commit, tag, push (unless build-only)
 ##############################################################################
-echo "🔄 Updating source tree…"
-git ls-files -z | grep -vzE "$EXCLUDE_DIRS" |
-  xargs -0 perl -pi -e 's/\Q'"$OLD_TAG"'\E/'"$NEW_TAG"'/g; s/\Q'"$OLD_VER"'\E/'"$NEW_VER"'/g'
+if [[ $BUILD_ONLY -eq 0 ]]; then
+  echo "🔄 Updating source tree…"
+  git ls-files -z | grep -vzE "$EXCLUDE_DIRS" |
+    xargs -0 perl -pi -e 's/\Q'"$OLD_TAG"'\E/'"$NEW_TAG"'/g; s/\Q'"$OLD_VER"'\E/'"$NEW_VER"'/g'
+
+  git add -u
+  git commit -m "🔖 Bump version to $NEW_TAG"
+  git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
+  git push && git push --tags
+else
+  echo "ℹ️  Skipping Git commit/tag/push."
+fi
 
 ##############################################################################
-# 4. Commit, tag, push
-##############################################################################
-git add -u
-git commit -m "🔖 Bump version to $NEW_TAG"
-git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
-git push && git push --tags
-
-##############################################################################
-# 5. Multi-arch build & push to Docker Hub
+# 4. Multi-arch build & push to Docker Hub
 ##############################################################################
 echo "🐳 Building & pushing Docker images…"
 $DOCKER run --privileged --rm tonistiigi/binfmt:latest
@@ -58,13 +70,16 @@ $DOCKER run --privileged --rm tonistiigi/binfmt:latest
 export GATEGPT_VERSION="$NEW_VER"
 export GATEGPT_TAG="$NEW_TAG"
 
+# ---- clean up any stale builder (ignore errors) ----
+$DOCKER buildx rm gategptbuilder 2>/dev/null || true
+
 $DOCKER buildx create --name gategptbuilder --use
 $DOCKER buildx bake --push
 $DOCKER buildx rm gategptbuilder
 
 ##############################################################################
-# 6. Done
+# 5. Done
 ##############################################################################
-echo -e "\n✅ Release $NEW_TAG completed!"
-echo "  • GitHub tag pushed"
+echo -e "\n✅ Operation completed!"
 echo "  • Docker images: docker.io/$DOCKER_REPO:$NEW_VER  and :latest"
+[[ $BUILD_ONLY -eq 0 ]] && echo "  • GitHub tag pushed ($NEW_TAG)"
