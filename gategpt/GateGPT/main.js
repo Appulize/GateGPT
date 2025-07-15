@@ -389,7 +389,7 @@ async function handleAIResponse(chat, convo, message) {
   const response = await askChatGPT(convo.messages);
   const trimmed = response.trim();
 
-  if (trimmed.toLowerCase() === 'send_location') {
+  if (trimmed.toLowerCase().includes('send_location')) {
     try {
       const lat = Number(getConfig('LOCATION_LAT'));
       const lon = Number(getConfig('LOCATION_LON'));
@@ -405,7 +405,7 @@ async function handleAIResponse(chat, convo, message) {
       console.error('❌ Failed to send location:', err.message);
       sendPushoverNotification('GateGPT', '❌ Failed to send location!');
     }
-  } else if (trimmed.toLowerCase() === 'open_gate') {
+  } else if (trimmed.toLowerCase().includes('open_gate')) {
     try {
       await axios.post(getConfig('GATE_OPEN_URL'), {});
       await sendAuto(chat,
