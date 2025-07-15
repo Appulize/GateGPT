@@ -206,13 +206,37 @@ async function sendPushoverNotification(title, message, opts = {}) {
 }
 
 async function askChatGPT(messages) {
-  const formatted = messages.map(m => ({
-    role: m.fromMe ? 'assistant' : 'user',
-    content: m.body
-  }));
+  // Build Chat Completions-style messages with optional image parts
+  const formatted = messages.flatMap(m => {
+    const parts = [];
+
+    if (m.body && m.body.trim().length) {
+      parts.push({ type: 'text', text: m.body.trim() });
+    }
+
+    if (Array.isArray(m.images)) {
+      // Each base-64 image becomes its own content part
+      m.images.forEach(b64 =>
+        parts.push({
+          type: 'image_url',
+          image_url: { url: `data:image/jpeg;base64,${b64}`, detail: 'auto' }
+        })
+      );
+    }
+
+    // Skip completely empty messages
+    if (parts.length === 0) return [];
+
+    return [
+      {
+        role: m.fromMe ? 'assistant' : 'user',
+        content: parts
+      }
+    ];
+  });
 
   const { choices } = await openai.chat.completions.create({
-    model: getConfig('CHATGPT_MODEL', 'gpt-4.1-mini'),
+    model: getConfig('CHATGPT_MODEL', 'gpt-4o-mini'),
     temperature: 0.5,
     messages: [
       {
@@ -259,7 +283,7 @@ async function handleMessage(message) {
 
   const chat = await message.getChat();
   const chatId = chat.id._serialized;
-  const msgText = message.body.trim().toLowerCase();
+  const msgText = (message.body || '').trim().toLowerCase();
 
   if (msgText === '!ignore') {
     ignoredChats.add(chatId);
@@ -292,6 +316,17 @@ async function handleMessage(message) {
     if (!transcription) return;
     message.body = transcription;
     message.type = 'chat';
+  }
+
+  if (message.type === 'image' && message.hasMedia) {
+    try {
+      const media = await message.downloadMedia();            // base-64 string
+      message.images = [media.data];                           // store on the message
+      message.body   = (message.caption || '').trim();         // retain caption for context
+      message.type   = 'chat';                                 // treat as normal chat after enrichment
+    } catch (err) {
+      console.error('❌ Failed to download image:', err.message);
+    }
   }
 
   const now = Date.now();
