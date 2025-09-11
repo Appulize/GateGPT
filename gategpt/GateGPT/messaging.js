@@ -29,6 +29,21 @@ function initMessaging({ onMessage, onCall, onReady }) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   const QR_PNG_PATH = path.join(DATA_DIR, 'qr.png');
   const SESSION_DIR = path.join(DATA_DIR, 'whatsapp-auth');
+  const CACHE_DIR = path.join(__dirname, '.wwebjs_cache');
+  const LEGACY_AUTH_DIR = path.join(__dirname, '.wwebjs_auth');
+
+  const RESET_SESSION = String(getConfig('RESET_SESSION', 'false')).toLowerCase() === 'true';
+  if (RESET_SESSION) {
+    try {
+      fs.rmSync(SESSION_DIR, { recursive: true, force: true });
+      fs.rmSync(CACHE_DIR, { recursive: true, force: true });
+      fs.rmSync(LEGACY_AUTH_DIR, { recursive: true, force: true });
+      console.log('🗑️  Cleared WhatsApp auth and cache directories');
+    } catch (err) {
+      console.warn('⚠️  Failed to reset WhatsApp session:', err.message);
+    }
+  }
+
   fs.mkdirSync(SESSION_DIR, { recursive: true });
 
   const app = express();
@@ -44,7 +59,18 @@ function initMessaging({ onMessage, onCall, onReady }) {
 
   client = new Client({
     authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
-    puppeteer: { args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+    webVersion: '2.3000.1026863126',
+    webVersionCache: { type: 'local', path: CACHE_DIR },
+    puppeteer: {
+      headless: true,
+      args: [
+        '--no-sandbox',              // allow running as root
+        '--disable-setuid-sandbox',  // needed without user namespaces
+        '--disable-dev-shm-usage',   // use /tmp instead of /dev/shm
+        '--no-zygote',               // don't use a zygote process
+        '--disable-gpu'              // no GPU in container
+      ]
+    }
   });
 
   client.on('qr', async qr => {
