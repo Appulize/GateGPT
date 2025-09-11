@@ -16,6 +16,45 @@ const tools = [
   {
     type: 'function',
     function: {
+      name: 'associate_tracking_number',
+      description: 'Associate a tracking number with this chat for later OTP retrieval',
+      parameters: {
+        type: 'object',
+        properties: {
+          tracking_number: { type: 'string' }
+        },
+        required: ['tracking_number']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_tracking_numbers',
+      description: 'Send a numbered list of available tracking numbers to the courier',
+      parameters: {
+        type: 'object',
+        properties: {}
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'send_otp',
+      description: 'Send the OTP for a tracking number and remove it from storage',
+      parameters: {
+        type: 'object',
+        properties: {
+          tracking_number: { type: 'string' }
+        },
+        required: ['tracking_number']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'open_gate',
       description: 'Open the gate for the courier',
       parameters: {
@@ -76,7 +115,17 @@ async function askChatGPT(messages) {
 
   if (Array.isArray(msg.tool_calls)) {
     for (const call of msg.tool_calls) {
-      if (call.function?.name) actions.push(call.function.name);
+      if (call.function?.name) {
+        let args = {};
+        try {
+          args = call.function.arguments
+            ? JSON.parse(call.function.arguments)
+            : {};
+        } catch {
+          args = {};
+        }
+        actions.push({ name: call.function.name, args });
+      }
     }
   }
 

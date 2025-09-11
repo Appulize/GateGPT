@@ -4,6 +4,7 @@
 process.env.RESPONSE_DELAY_MS = '0';
 process.env.AUTO_CLOSE_DELAY_MS = '1000';
 process.env.TRIGGER_KEYWORDS = 'q.*post,outside';
+process.env.OTP_TRIGGER_KEYWORDS = 'GFS!';
 
 const axios = require('axios');
 const fs = require('fs');
@@ -40,6 +41,10 @@ jest.mock('../messaging', () => {
 });
 
 const messaging = require('../messaging');
+jest.mock('../openaiClient', () => ({
+  chat: { completions: { create: jest.fn() } }
+}));
+const openai = require('../openaiClient');
 const { CONFIG_PATH } = require('../config');
 require('../main');
 
@@ -67,18 +72,108 @@ describe('delivery conversation', () => {
     }
 
     const postSpy = jest.spyOn(axios, 'post');
+    openai.chat.completions.create.mockResolvedValueOnce({
+      choices: [
+        {
+          message: {
+            content: '',
+            tool_calls: [
+              { type: 'function', function: { name: 'open_gate', arguments: '{}' } }
+            ]
+          }
+        }
+      ]
+    });
 
     await messaging.__handlers.onMessage(createMessage('Hi sir qpost'));
-    await messaging.__handlers.onMessage(createMessage('Outside'));
-    await messaging.__handlers.onMessage(
-      createMessage('Yes outside building 32 now')
-    );
 
     // wait for GPT response and auto-close timer
     await new Promise(res => setTimeout(res, 20000));
 
     const calledUrls = postSpy.mock.calls.map(c => c[0]);
-    expect(calledUrls).toContain(process.env.GATE_OPEN_URL);
-    expect(calledUrls).toContain(process.env.GATE_CLOSE_URL);
+    expect(calledUrls).toContain('https://your.server.com/api/webhook/open-gate');
+  });
+
+  test('handles OTP lifecycle', async () => {
+    openai.chat.completions.create.mockReset();
+    openai.chat.completions.create
+      .mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              content: '',
+              tool_calls: [
+                {
+                  type: 'function',
+                  function: {
+                    name: 'save_tracking_otp',
+                    arguments: JSON.stringify({
+                      tracking_number: 'ABC123',
+                      otp: '9999'
+                    })
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      })
+      .mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              content: '',
+              tool_calls: [
+                {
+                  type: 'function',
+                  function: {
+                    name: 'associate_tracking_number',
+                    arguments: JSON.stringify({
+                      tracking_number: 'ABC123'
+                    })
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      })
+      .mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              content: '',
+              tool_calls: [
+                {
+                  type: 'function',
+                  function: {
+                    name: 'send_otp',
+                    arguments: JSON.stringify({
+                      tracking_number: 'ABC123'
+                    })
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      });
+
+    const { getOtp } = require('../otp');
+
+    await messaging.__handlers.onMessage(createMessage('GFS! some message'));
+    expect(getOtp('ABC123')).toBe('9999');
+
+    await messaging.__handlers.onMessage(createMessage('tracking ABC123'));
+    await new Promise(res => setTimeout(res, 10));
+
+    await messaging.__handlers.onMessage(createMessage('otp please'));
+    await new Promise(res => setTimeout(res, 10));
+
+    expect(messaging.sendAuto).toHaveBeenLastCalledWith(
+      messaging.__chat,
+      '9999'
+    );
+    expect(getOtp('ABC123')).toBeUndefined();
   });
 });

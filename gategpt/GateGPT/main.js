@@ -18,6 +18,12 @@ const {
   getChatById
 } = require('./messaging');
 const { sendLocation, openGate } = require('./actions');
+const {
+  processOtpMessage,
+  associateTracking,
+  sendTrackingList,
+  sendOtp
+} = require('./otp');
 
 initLogging();
 
@@ -77,6 +83,11 @@ function shouldTrigger(msg) {
   return keywords.some(r => new RegExp(r, 'i').test(msg));
 }
 
+function shouldHandleOtp(msg) {
+  const keywords = getConfig('OTP_TRIGGER_KEYWORDS', []);
+  return keywords.some(r => new RegExp(r, 'i').test(msg));
+}
+
 async function handleMessage(message) {
   if (isAutoMessage(message)) return;
 
@@ -103,6 +114,12 @@ async function handleMessage(message) {
 
   if (ignoredChats.has(chatId) || chat.id.server === 'g.us') {
     console.log(`🚫 Ignored chat or group: ${chatId}`);
+    return;
+  }
+
+  if (shouldHandleOtp(message.body)) {
+    await processOtpMessage(message);
+    console.log(`🔐 Stored OTP message from ${chatId}`);
     return;
   }
 
@@ -189,16 +206,29 @@ async function handleAIResponse(chat, convo) {
   const { reply, actions } = await askChatGPT(convo.messages);
   let trimmed = reply;
 
-    for (const action of actions) {
-      switch (action) {
-        case 'send_location':
-          await sendLocation(chat);
-          break;
-        case 'open_gate':
-          await openGate(chat, convo);
-          break;
-      }
+  for (const action of actions) {
+    switch (action.name) {
+      case 'send_location':
+        await sendLocation(chat);
+        break;
+      case 'open_gate':
+        await openGate(chat, convo);
+        break;
+      case 'associate_tracking_number':
+        if (action.args?.tracking_number) {
+          associateTracking(chat.id._serialized, action.args.tracking_number);
+        }
+        break;
+      case 'list_tracking_numbers':
+        await sendTrackingList(chat);
+        break;
+      case 'send_otp':
+        if (action.args?.tracking_number) {
+          await sendOtp(chat, action.args.tracking_number);
+        }
+        break;
     }
+  }
 
   if (trimmed && trimmed !== '...') {
     await sendAuto(chat, trimmed);

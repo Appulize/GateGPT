@@ -146,3 +146,5 @@ v*.js
 /gategpt/GateGPT/whatsapp-auth
 /gategpt/GateGPT/.wwebjs_cache
 gategpt/GateGPT/qr.png
+gategpt/GateGPT/otps.json
+gategpt/GateGPT/tracking-map.json
