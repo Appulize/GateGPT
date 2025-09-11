@@ -8,6 +8,7 @@
   "AUTO_CLOSE_DELAY_MS": 120000,
   "MAX_MESSAGES_PER_HOUR": 20,
   "IGNORE_FILE": "ignored-chats.json",
+  "RESET_SESSION": false,
   "TRIGGER_KEYWORDS": [
     "deliver",
     "package",
