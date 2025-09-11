@@ -148,7 +148,7 @@ const client = new Client({
   // Recommended Chromium flags for running inside containers
   puppeteer: {
     headless: true,
-    executablePath: '/usr/bin/chromium-browser',
+//    executablePath: '/usr/bin/chromium-browser',
     args: [
       '--no-sandbox',              // allow running as root
       '--disable-setuid-sandbox',  // needed without user namespaces
