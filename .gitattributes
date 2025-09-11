@@ -1,0 +1,7 @@
+# Default: keep LF in the repo and in working trees
+* text=auto eol=lf
+
+# Allow CRLF only where it’s required on Windows
+*.bat eol=crlf
+*.cmd eol=crlf
+*.ps1 eol=crlf
