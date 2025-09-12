@@ -20,7 +20,7 @@ function getConfig(key, defaultValue = undefined) {
   const fromEnv = process.env[key];
 
   if (fromEnv !== undefined) {
-    if (key === 'TRIGGER_KEYWORDS') {
+    if (key === 'TRIGGER_KEYWORDS' || key === 'OTP_TRIGGER_KEYWORDS') {
       return fromEnv
         .split(/[,]+/)
         .map(s => s.trim())
