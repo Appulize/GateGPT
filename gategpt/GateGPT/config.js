@@ -17,8 +17,6 @@ try {
     console.log(
       `🔧  Loaded ${Object.keys(opts).length} HA option(s) into env vars`
     );
-    // Temporary debug: output all environment variables including secrets
-    console.log('🔍  Current environment variables:', process.env);
   }
 } catch (err) {
   console.warn('⚠️  Failed to read /data/options.json:', err.message);
