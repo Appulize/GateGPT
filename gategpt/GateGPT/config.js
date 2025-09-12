@@ -1,6 +1,29 @@
 const fs = require('fs');
 const path = require('path');
 
+/* ─────────────── 🏠  Home-Assistant options → ENV  ─────────────── */
+try {
+  const HA_OPTIONS_PATH = '/data/options.json';
+  if (fs.existsSync(HA_OPTIONS_PATH)) {
+    const opts = JSON.parse(fs.readFileSync(HA_OPTIONS_PATH, 'utf8'));
+
+    Object.entries(opts).forEach(([k, v]) => {
+      const key = String(k).toUpperCase();
+      if (process.env[key] === undefined) {
+        process.env[key] = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      }
+    });
+
+    console.log(
+      `🔧  Loaded ${Object.keys(opts).length} HA option(s) into env vars`
+    );
+    // Temporary debug: output all environment variables including secrets
+    console.log('🔍  Current environment variables:', process.env);
+  }
+} catch (err) {
+  console.warn('⚠️  Failed to read /data/options.json:', err.message);
+}
+
 const CONFIG_PATH = path.resolve(__dirname, 'config.json');
 const SAMPLE_CONFIG_PATH = path.resolve(__dirname, 'config.sample.json');
 
@@ -42,3 +65,4 @@ module.exports = {
   reloadConfig,
   CONFIG_PATH
 };
+

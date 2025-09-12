@@ -27,25 +27,6 @@ const {
 
 initLogging();
 
-/* ─────────────── 🏠  Home-Assistant options → ENV  ─────────────── */
-try {
-  const HA_OPTIONS_PATH = '/data/options.json';
-  if (fs.existsSync(HA_OPTIONS_PATH)) {
-    const opts = JSON.parse(fs.readFileSync(HA_OPTIONS_PATH, 'utf8'));
-
-    Object.entries(opts).forEach(([k, v]) => {
-      const key = String(k).toUpperCase();
-      if (process.env[key] === undefined) {
-        process.env[key] = typeof v === 'object' ? JSON.stringify(v) : String(v);
-      }
-    });
-
-    console.log(`🔧  Loaded ${Object.keys(opts).length} HA option(s) into env vars`);
-  }
-} catch (err) {
-  console.warn('⚠️  Failed to read /data/options.json:', err.message);
-}
-
 /* ──────────────────────── 🔧  CONFIG FILE HANDLING  ───────────────────────── */
 const DATA_DIR = getConfig('SESSION_DIR', __dirname);
 fs.mkdirSync(DATA_DIR, { recursive: true });
