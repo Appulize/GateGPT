@@ -29,6 +29,9 @@ configuration:
   TRIGGER_KEYWORDS:
     name: Trigger keywords / regex
     description: Words or regex patterns that flag a message as a delivery attempt.
+  OTP_TRIGGER_KEYWORDS:
+    name: OTP Trigger keywords / regex
+    description: Words or regex patterns that flag a message as an OTP code.
   CHATGPT_MODEL:
     name: ChatGPT model
     description: OpenAI model name the bot should use.
@@ -44,3 +47,6 @@ configuration:
   MESSAGE_GATE_FAILED:
     name: Gate-failed message
     description: Message sent when the gate cannot be opened.
+  RESET_SESSION:
+    name: Reset session
+    description: Resets the WhatsApp session, start the addon once with this enabled, then disable it and restart again before attempting to login.
