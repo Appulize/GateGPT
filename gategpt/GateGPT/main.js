@@ -21,7 +21,7 @@ const { sendLocation, openGate } = require('./actions');
 const {
   processOtpMessage,
   associateTracking,
-  sendTrackingList,
+  resolveOtp,
   sendOtp
 } = require('./otp');
 
@@ -200,8 +200,8 @@ async function handleAIResponse(chat, convo) {
           associateTracking(chat.id._serialized, action.args.tracking_number);
         }
         break;
-      case 'list_tracking_numbers':
-        await sendTrackingList(chat);
+      case 'resolve_otp':
+        await resolveOtp(chat);
         break;
       case 'send_otp':
         if (action.args?.tracking_number) {

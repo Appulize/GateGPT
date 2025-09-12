@@ -30,8 +30,9 @@ const tools = [
   {
     type: 'function',
     function: {
-      name: 'list_tracking_numbers',
-      description: 'Send a numbered list of available tracking numbers to the courier',
+      name: 'resolve_otp',
+      description:
+        'Send an OTP immediately if possible; otherwise send a list of available tracking numbers; try this before the send_otp tool',
       parameters: {
         type: 'object',
         properties: {}
@@ -42,7 +43,7 @@ const tools = [
     type: 'function',
     function: {
       name: 'send_otp',
-      description: 'Send the OTP for a tracking number and remove it from storage',
+      description: 'Send the OTP for a know tracking number and remove it from storage, only use if tracking number is already known',
       parameters: {
         type: 'object',
         properties: {
