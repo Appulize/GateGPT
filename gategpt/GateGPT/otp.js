@@ -115,7 +115,8 @@ async function processOtpMessage(message) {
         }
       }
     ],
-    tool_choice: 'auto'
+    tool_choice: 'auto',
+    parallel_tool_calls: true
   });
 
   const msg = response.choices[0].message;

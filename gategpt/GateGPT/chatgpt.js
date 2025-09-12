@@ -107,7 +107,8 @@ async function askChatGPT(messages) {
       ...formatted
     ],
     tools,
-    tool_choice: 'auto'
+    tool_choice: 'auto',
+    parallel_tool_calls: true
   });
 
   const msg = response.choices[0].message;
