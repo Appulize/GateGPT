@@ -2,7 +2,7 @@
   "name": "GateGPT",
   "slug": "gategpt",
   "description": "GateGPT is an automated delivery assistant that listens for messages on WhatsApp Web and responds to couriers using ChatGPT.",
-  "version": "1.1.0",
+  "version": "1.1.4",
   "url": "https://github.com/appulize/GateGPT",
   "image": "docker.io/maciekish/gategpt",
   "arch": ["aarch64", "amd64"],
@@ -36,7 +36,8 @@
     "LOCATION_SUBTITLE": "Subtitle",
     "MESSAGE_CALL": "Sorry, I can't answer calls. Please send a message instead.",
     "MESSAGE_GATE_OPEN": "Please enter through the car gate and leave the item on the doorstep. The gate will close after 2 minutes. Thank you.",
-    "MESSAGE_GATE_FAILED": "Sorry, the gate failed to open. Please leave the item outside the car gate."
+    "MESSAGE_GATE_FAILED": "Sorry, the gate failed to open. Please leave the item outside the car gate.",
+    "RESET_SESSION": false
   },
   "schema": {
     "GATE_OPEN_URL": "str",
@@ -58,6 +59,7 @@
     "LOCATION_SUBTITLE": "str",
     "MESSAGE_CALL": "str",
     "MESSAGE_GATE_OPEN": "str",
-    "MESSAGE_GATE_FAILED": "str"
+    "MESSAGE_GATE_FAILED": "str",
+    "RESET_SESSION": "bool"
   }
 }
