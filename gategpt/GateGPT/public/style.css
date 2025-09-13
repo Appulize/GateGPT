@@ -1,4 +1,4 @@
-body { background: #f8f9fa; }
+body { background: var(--bs-body-bg); color: var(--bs-body-color); }
 #qr { max-width: 200px; }
 #log { max-height: 300px; overflow-y: auto; }
 .status { text-transform: capitalize; }

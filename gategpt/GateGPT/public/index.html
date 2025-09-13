@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <base href="./" />
   <title>GateGPT Dashboard</title>
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f8f9fa" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <script>
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    const applyTheme = e => document.documentElement.dataset.bsTheme = e.matches ? 'dark' : 'light';
+    applyTheme(mql);
+    if (mql.addEventListener) mql.addEventListener('change', applyTheme);
+    else mql.addListener(applyTheme);
+  </script>
   <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet" />
   <link href="style.css" rel="stylesheet" />
