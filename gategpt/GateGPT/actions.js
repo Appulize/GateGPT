@@ -2,6 +2,8 @@ const axios = require('axios');
 const { getConfig } = require('./config');
 const { sendPushoverNotification } = require('./notifications');
 const { sendAuto, Location } = require('./messaging');
+const { getTrackingsForPhone, removeTrackingForPhone } = require('./otp');
+const { setStatus } = require('./deliveryLog');
 
 async function sendLocation(chat) {
   try {
@@ -47,6 +49,11 @@ async function openGate(chat, convo) {
       try {
         await axios.post(getConfig('GATE_CLOSE_URL'), {});
         console.log(`🔐 Gate closed for ${chat.id._serialized}`);
+        const trackings = getTrackingsForPhone(chat.id._serialized);
+        trackings.forEach(t => {
+          setStatus(t, 'delivered', chat.id._serialized);
+          removeTrackingForPhone(chat.id._serialized, t);
+        });
         sendPushoverNotification(
           'GateGPT',
           `Delivery from ${chat.id._serialized} handled.`
@@ -57,6 +64,8 @@ async function openGate(chat, convo) {
       }
       convo.instant = false;
       convo.triggered = false;
+      convo.sentLocation = false;
+      convo.delivering = false;
       convo.gateCloseTimer = null;
       console.log(`🕓 Instant mode OFF for ${chat.id._serialized}`);
     }, getConfig('AUTO_CLOSE_DELAY_MS', 120000));

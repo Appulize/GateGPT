@@ -10,6 +10,8 @@ Warning! The WhatsApp TOS prohibits the use of bots on personal accounts. GateGP
 
 - Intelligent ChatGPT-based replies with courier-specific logic
 - Automatic gate open/close via Home Assistant webhooks
+- Dashboard with unified delivery statuses and live logs
+- Stores courier OTP codes and associates them with tracking numbers
 - Voice message transcription using OpenAI Whisper
 - Pushover notifications
 - Instant and delayed (5-minute timeout) reply logic
@@ -43,6 +45,7 @@ Warning! The WhatsApp TOS prohibits the use of bots on personal accounts. GateGP
 4. Go to the addon page and click the Configuration tab and enter all the required details
 5. Go back to the first tab and click "Start".
 6. Go to the "Log" tab and scan the QR code with WhatsApp (Link Device).
+7. Use the **OPEN WEB UI** button to view the dashboard via Home Assistant ingress.
 
 ---
 
@@ -97,6 +100,17 @@ On first launch, you'll see a QR code in the terminal.
 
 ---
 
+## Dashboard & OTP Tracking
+
+GateGPT serves an offline dashboard on port **3000** with a Bootstrap-based UI showing a unified delivery list (Expected Soon → Out For Delivery → Delivering → Delivered) and a live log that updates in real time. The WhatsApp QR login lives on its own tab, which remains accessible but the interface switches to Deliveries once the client is ready. A Settings tab lists all running configuration values with secrets redacted.
+
+- **Manual run (`node main.js`)** – open http://localhost:3000 in your browser.
+- **Home Assistant add-on** – click **OPEN WEB UI** on the add-on page (ingress) or open the sidebar entry.
+
+OTP messages matching `OTP_TRIGGER_KEYWORDS` are stored and associated with tracking numbers. When a courier requests a code, the bot can send the matching OTP automatically.
+
+---
+
 ## Usage Notes
 
 - Incoming courier messages will trigger a delayed GPT response after 10 seconds, unless you manually reply.
@@ -104,6 +118,7 @@ On first launch, you'll see a QR code in the terminal.
 - After replying or opening the gate, the chat is marked as **unread** to stay “invisible” on the account.
 - Group chats are ignored by default.
 - Voice messages are transcribed and handled just like text.
+- OTP codes are captured and shown alongside deliveries until claimed.
 
 ---
 
@@ -128,6 +143,7 @@ Supported config options:
 | `MAX_MESSAGES_PER_HOUR`| Message rate limiter                             |
 | `IGNORE_FILE`          | File path for ignored chat IDs                   |
 | `TRIGGER_KEYWORDS`     | Array of regex strings to detect couriers        |
+| `OTP_TRIGGER_KEYWORDS` | Regex strings that identify OTP messages         |
 | `CHATGPT_SYSTEM_PROMPT`| Prompt used to guide GPT responses               |
 
 ---

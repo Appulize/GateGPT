@@ -1,0 +1,4 @@
+body { background: #f8f9fa; }
+#qr { max-width: 200px; }
+#log { max-height: 300px; overflow-y: auto; }
+.status { text-transform: capitalize; }

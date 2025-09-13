@@ -58,18 +58,22 @@ echo "Copying project files to ${INSTALL_DIR}..."
 mkdir -p "$INSTALL_DIR"
 cp -r . "$INSTALL_DIR"
 
-# === 7. Install the service ===
+# === 7. Install npm dependencies ===
+echo "Installing npm dependencies..."
+(cd "$INSTALL_DIR" && npm install --production)
+
+# === 8. Install the service ===
 echo "Installing systemd service..."
 sudo cp "$TMP_SERVICE_FILE" /etc/systemd/system/gate-gpt.service
 
-# === 8. Enable and start ===
+# === 9. Enable and start ===
 echo "Reloading and enabling service..."
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
 sudo systemctl enable gate-gpt.service
 sudo systemctl restart gate-gpt.service
 
-# === 9. Log in ===
+# === 10. Log in ===
 echo "Following logs for GateGPT..."
 sleep 1
 journalctl -u gate-gpt -f

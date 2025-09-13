@@ -2,7 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const openai = require('./openaiClient');
 const { getConfig } = require('./config');
-const { sendAuto } = require('./messaging');
+const { setStatus } = require('./deliveryLog');
+const state = require('./state');
+
+// Defer requiring messaging to avoid circular dependency
+function sendAutoMsg(chat, content, options) {
+  const { sendAuto } = require('./messaging');
+  return options === undefined
+    ? sendAuto(chat, content)
+    : sendAuto(chat, content, options);
+}
 
 const DATA_DIR = getConfig('SESSION_DIR', __dirname);
 const OTP_FILE = path.join(DATA_DIR, 'otps.json');
@@ -31,13 +40,10 @@ function cleanupExpired() {
       changed = true;
     }
   }
-  if (changed) writeJson(OTP_FILE, otps);
-  const map = readJson(MAP_FILE, {});
-  for (const phone of Object.keys(map)) {
-    map[phone] = map[phone].filter(t => otps[t]);
-    if (!map[phone].length) delete map[phone];
+  if (changed) {
+    writeJson(OTP_FILE, otps);
+    state.emit('update');
   }
-  writeJson(MAP_FILE, map);
 }
 
 function saveOtp(tracking, otp) {
@@ -45,6 +51,8 @@ function saveOtp(tracking, otp) {
   otps[tracking] = { otp, timestamp: Date.now() };
   writeJson(OTP_FILE, otps);
   cleanupExpired();
+  setStatus(tracking, 'expected soon');
+  state.emit('update');
 }
 
 function associateTracking(phone, tracking) {
@@ -53,6 +61,8 @@ function associateTracking(phone, tracking) {
   if (!map[phone].includes(tracking)) map[phone].push(tracking);
   writeJson(MAP_FILE, map);
   cleanupExpired();
+  setStatus(tracking, 'out for delivery', phone);
+  state.emit('update');
 }
 
 function getOtp(tracking) {
@@ -60,33 +70,36 @@ function getOtp(tracking) {
   return otps[tracking]?.otp;
 }
 
-function removeTracking(tracking) {
+function removeOtp(tracking) {
   const otps = readJson(OTP_FILE, {});
-  delete otps[tracking];
-  writeJson(OTP_FILE, otps);
-  const map = readJson(MAP_FILE, {});
-  for (const phone of Object.keys(map)) {
-    map[phone] = map[phone].filter(t => t !== tracking);
-    if (!map[phone].length) delete map[phone];
+  if (otps[tracking]) {
+    delete otps[tracking];
+    writeJson(OTP_FILE, otps);
+    state.emit('update');
   }
-  writeJson(MAP_FILE, map);
 }
 
 function removeTrackingForPhone(phone, tracking) {
-  const otps = readJson(OTP_FILE, {});
-  delete otps[tracking];
-  writeJson(OTP_FILE, otps);
   const map = readJson(MAP_FILE, {});
   if (map[phone]) {
     map[phone] = map[phone].filter(t => t !== tracking);
     if (!map[phone].length) delete map[phone];
+    writeJson(MAP_FILE, map);
+    state.emit('update');
   }
-  writeJson(MAP_FILE, map);
 }
 
 function getTrackingsForPhone(phone) {
   const map = readJson(MAP_FILE, {});
   return map[phone] || [];
+}
+
+function getAllOtpData() {
+  return readJson(OTP_FILE, {});
+}
+
+function getTrackingMap() {
+  return readJson(MAP_FILE, {});
 }
 
 function listUnpairedTrackings() {
@@ -152,7 +165,7 @@ async function resolveOtp(chat) {
   const otps = readJson(OTP_FILE, {});
   const allTrackings = Object.keys(otps);
   if (!allTrackings.length) {
-    await sendAuto(chat, 'Sorry, no OTP numbers available.');
+    await sendAutoMsg(chat, 'Sorry, no OTP numbers available.');
     return;
   }
   if (allTrackings.length === 1) {
@@ -160,32 +173,31 @@ async function resolveOtp(chat) {
     return;
   }
   const map = readJson(MAP_FILE, {});
-  const associated = map[phone] || [];
+  const associated = (map[phone] || []).filter(t => otps[t]);
   if (associated.length) {
     await sendOtp(chat, associated[0], phone);
     return;
   }
-  let trackings = getTrackingsForPhone(phone);
+  let trackings = getTrackingsForPhone(phone).filter(t => otps[t]);
   if (!trackings.length) trackings = listUnpairedTrackings();
   if (!trackings.length) {
-    await sendAuto(chat, 'Sorry, no OTP numbers available.');
+    await sendAutoMsg(chat, 'Sorry, no OTP numbers available.');
     return;
   }
   const list = trackings.map((t, i) => `${i + 1}. ${t}`).join('\n');
   const header = 'Please select a tracking number, reply with the tracking number or line number:\n';
-  await sendAuto(chat, `${header}${list}`);
+  await sendAutoMsg(chat, `${header}${list}`);
 }
 
 async function sendOtp(chat, tracking, phone) {
   cleanupExpired();
   const otp = getOtp(tracking);
   if (!otp) {
-    await sendAuto(chat, 'Sorry, OTP not found.');
+    await sendAutoMsg(chat, 'Sorry, OTP not found.');
     return;
   }
-  await sendAuto(chat, otp);
-  if (phone) removeTrackingForPhone(phone, tracking);
-  else removeTracking(tracking);
+  await sendAutoMsg(chat, otp);
+  removeOtp(tracking);
 }
 
 module.exports = {
@@ -193,5 +205,9 @@ module.exports = {
   associateTracking,
   resolveOtp,
   sendOtp,
-  getOtp
+  getOtp,
+  getTrackingsForPhone,
+  getAllOtpData,
+  getTrackingMap,
+  removeTrackingForPhone
 };
