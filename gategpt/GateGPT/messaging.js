@@ -118,7 +118,7 @@ function initMessaging({ onMessage, onCall, onReady }) {
       if (typeof val === 'object') val = JSON.stringify(val);
       const isSecret =
         typeof val === 'string' &&
-        (/(TOKEN|SECRET|PASSWORD)/i.test(k) ||
+        (/(TOKEN|SECRET|PASSWORD|PUSHOVER)/i.test(k) ||
           (/KEY$/i.test(k) && !/KEYWORDS$/i.test(k)));
       if (isSecret) {
         const start = val.slice(0, 4);
