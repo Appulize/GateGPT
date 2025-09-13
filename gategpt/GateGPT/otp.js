@@ -166,12 +166,12 @@ async function resolveOtp(chat) {
     return;
   }
   const map = readJson(MAP_FILE, {});
-  const associated = map[phone] || [];
+  const associated = (map[phone] || []).filter(t => otps[t]);
   if (associated.length) {
     await sendOtp(chat, associated[0], phone);
     return;
   }
-  let trackings = getTrackingsForPhone(phone);
+  let trackings = getTrackingsForPhone(phone).filter(t => otps[t]);
   if (!trackings.length) trackings = listUnpairedTrackings();
   if (!trackings.length) {
     await sendAuto(chat, 'Sorry, no OTP numbers available.');
