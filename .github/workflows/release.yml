@@ -97,7 +97,8 @@ jobs:
         env:
           GATEGPT_VERSION: ${{ steps.prep.outputs.new_ver }}
         with:
-          files: gategpt/docker-bake.hcl
+          workdir: gategpt
+          files: docker-bake.hcl
           push: true
           set: |
             gategpt.tags=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/gategpt:${{ steps.prep.outputs.new_ver }}
