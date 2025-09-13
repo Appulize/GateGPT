@@ -1,0 +1,132 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (vX.Y.Z). Leave blank to rebuild current version'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Determine versions
+        id: prep
+        run: |
+          OLD_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          OLD_VER=${OLD_TAG#v}
+          INPUT="${{ inputs.version }}"
+          BUILD_ONLY=0
+          if [ -z "$INPUT" ]; then
+            NEW_VER="$OLD_VER"
+            NEW_TAG="$OLD_TAG"
+            BUILD_ONLY=1
+          elif [[ "$INPUT" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            NEW_VER="${BASH_REMATCH[1]}"
+            NEW_TAG="$INPUT"
+            if [ "$NEW_TAG" = "$OLD_TAG" ]; then
+              BUILD_ONLY=1
+            fi
+          else
+            echo "Invalid version format: $INPUT" >&2
+            exit 1
+          fi
+          echo "old_tag=$OLD_TAG" >> $GITHUB_OUTPUT
+          echo "old_ver=$OLD_VER" >> $GITHUB_OUTPUT
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "new_ver=$NEW_VER" >> $GITHUB_OUTPUT
+          echo "build_only=$BUILD_ONLY" >> $GITHUB_OUTPUT
+
+      - name: Update sources & tag
+        if: steps.prep.outputs.build_only == '0'
+        env:
+          OLD_TAG: ${{ steps.prep.outputs.old_tag }}
+          OLD_VER: ${{ steps.prep.outputs.old_ver }}
+          NEW_TAG: ${{ steps.prep.outputs.new_tag }}
+          NEW_VER: ${{ steps.prep.outputs.new_ver }}
+          EXCLUDE_RE: '\\.git|vendor|node_modules|gategpt/GateGPT/node_modules|package-lock\\.json|yarn\\.lock|pnpm-lock\\.yaml'
+        run: |
+          echo "🔄 Updating version strings…"
+          pushd gategpt/GateGPT >/dev/null
+          npm version --no-git-tag-version "$NEW_VER"
+          npm install --package-lock-only --omit=dev
+          popd >/dev/null
+          git ls-files -z | grep -vzE "$EXCLUDE_RE" | xargs -0 perl -pi -e "s/\\Q$OLD_TAG\\E/$NEW_TAG/g; s/\\Q$OLD_VER\\E/$NEW_VER/g"
+          git add -u
+          git commit -m "🔖 Bump version to $NEW_TAG"
+          git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
+          git push origin HEAD:${{ github.ref_name }}
+          git push origin "$NEW_TAG"
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker images
+        uses: docker/bake-action@v5
+        env:
+          GATEGPT_VERSION: ${{ steps.prep.outputs.new_ver }}
+        with:
+          files: gategpt/docker-bake.hcl
+          push: true
+          set: |
+            gategpt.tags=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/gategpt:${{ steps.prep.outputs.new_ver }}
+            gategpt.tags+=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/gategpt:latest
+
+      - name: Pushover success notification
+        if: success()
+        env:
+          PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
+          VERSION: ${{ steps.prep.outputs.new_tag }}
+        run: |
+          curl -s \
+            --form-string "token=$PUSHOVER_TOKEN" \
+            --form-string "user=$PUSHOVER_USER" \
+            --form-string "title=GateGPT $VERSION released" \
+            --form-string "message=Build & push completed successfully." \
+            https://api.pushover.net/1/messages.json
+
+      - name: Pushover failure notification
+        if: failure()
+        env:
+          PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
+          VERSION: ${{ steps.prep.outputs.new_tag }}
+        run: |
+          curl -s \
+            --form-string "token=$PUSHOVER_TOKEN" \
+            --form-string "user=$PUSHOVER_USER" \
+            --form-string "title=GateGPT $VERSION release FAILED" \
+            --form-string "message=Check the Actions logs for details." \
+            https://api.pushover.net/1/messages.json
