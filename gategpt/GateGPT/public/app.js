@@ -66,31 +66,81 @@ function handleState(data) {
 }
 
 async function initState() {
-  try {
-    const res = await fetch(base + 'api/state');
-    handleState(await res.json());
-  } catch {}
+  const poll = async () => {
+    try {
+      const res = await fetch(base + 'api/state');
+      handleState(await res.json());
+    } catch {}
+  };
+  await poll();
   const source = new EventSource(base + 'api/state-stream', {
     withCredentials: true
   });
-  source.onmessage = e => handleState(JSON.parse(e.data));
+  let polling = false;
+  const startPolling = () => {
+    if (polling) return;
+    polling = true;
+    setInterval(poll, 5000);
+  };
+  let timer = setTimeout(() => {
+    source.close();
+    startPolling();
+  }, 5000);
+  const ready = () => {
+    clearTimeout(timer);
+    timer = null;
+  };
+  source.addEventListener('streaming-works', ready);
+  source.onmessage = e => {
+    ready();
+    handleState(JSON.parse(e.data));
+  };
+  source.onerror = () => {
+    if (timer) clearTimeout(timer);
+    source.close();
+    startPolling();
+  };
 }
 
 async function initLogs() {
-  try {
-    const res = await fetch(base + 'api/logs');
-    const logs = await res.json();
-    const logEl = document.getElementById('log');
-    logEl.textContent = logs.join('\n');
-    logEl.scrollTop = logEl.scrollHeight;
-  } catch {}
+  const fetchLogs = async () => {
+    try {
+      const res = await fetch(base + 'api/logs');
+      const logs = await res.json();
+      const logEl = document.getElementById('log');
+      logEl.textContent = logs.join('\n');
+      logEl.scrollTop = logEl.scrollHeight;
+    } catch {}
+  };
+  await fetchLogs();
   const source = new EventSource(base + 'api/log-stream', {
     withCredentials: true
   });
   const logEl = document.getElementById('log');
+  let polling = false;
+  const startPolling = () => {
+    if (polling) return;
+    polling = true;
+    setInterval(fetchLogs, 5000);
+  };
+  let timer = setTimeout(() => {
+    source.close();
+    startPolling();
+  }, 5000);
+  const ready = () => {
+    clearTimeout(timer);
+    timer = null;
+  };
+  source.addEventListener('streaming-works', ready);
   source.onmessage = e => {
+    ready();
     logEl.textContent += '\n' + e.data;
     logEl.scrollTop = logEl.scrollHeight;
+  };
+  source.onerror = () => {
+    if (timer) clearTimeout(timer);
+    source.close();
+    startPolling();
   };
 }
 

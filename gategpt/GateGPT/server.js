@@ -36,6 +36,7 @@ function initServer() {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
     if (res.flushHeaders) res.flushHeaders();
+    res.write('event: streaming-works\ndata: 1\n\n');
     const send = () => res.write(`data: ${JSON.stringify(getState())}\n\n`);
     send();
     state.on('update', send);
@@ -52,6 +53,7 @@ function initServer() {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
     if (res.flushHeaders) res.flushHeaders();
+    res.write('event: streaming-works\ndata: 1\n\n');
     getLogHistory().forEach(line => res.write(`data: ${line}\n\n`));
     const send = line => res.write(`data: ${line}\n\n`);
     logEmitter.on('log', send);
