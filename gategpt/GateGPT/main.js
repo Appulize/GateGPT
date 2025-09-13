@@ -22,8 +22,10 @@ const {
   processOtpMessage,
   associateTracking,
   resolveOtp,
-  sendOtp
+  sendOtp,
+  getTrackingsForPhone
 } = require('./otp');
+const { setStatus } = require('./deliveryLog');
 
 initLogging();
 
@@ -136,11 +138,18 @@ async function handleMessage(message) {
       instantTimer: null,
       gateCloseTimer: null,
       history: [],
-      triggered: false
+      triggered: false,
+      sentLocation: false,
+      delivering: false
     });
   }
 
   const convo = conversations.get(chatId);
+  if (!message.fromMe && convo.sentLocation && !convo.delivering) {
+    const trackings = getTrackingsForPhone(chatId);
+    trackings.forEach(t => setStatus(t, 'delivering', chatId));
+    convo.delivering = true;
+  }
   convo.messages.push(message);
   if (convo.messages.length > 10) convo.messages = convo.messages.slice(-10);
 
@@ -191,6 +200,7 @@ async function handleAIResponse(chat, convo) {
     switch (action.name) {
       case 'send_location':
         await sendLocation(chat);
+        convo.sentLocation = true;
         break;
       case 'open_gate':
         await openGate(chat, convo);
@@ -219,6 +229,8 @@ async function handleAIResponse(chat, convo) {
     convo.instantTimer = setTimeout(() => {
       convo.instant = false;
       convo.triggered = false;
+      convo.sentLocation = false;
+      convo.delivering = false;
       console.log(`🕓 Instant mode OFF for ${chat.id._serialized}`);
     }, getConfig('AUTO_CLOSE_DELAY_MS', 120000));
   }

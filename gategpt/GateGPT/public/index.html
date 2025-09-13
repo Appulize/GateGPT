@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GateGPT Dashboard</title>
+  <link href="/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="/bootstrap-icons/bootstrap-icons.css" rel="stylesheet" />
+  <link href="/style.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="container py-4">
+    <h1 class="mb-4 text-center">GateGPT Dashboard</h1>
+    <div class="row g-4 mb-4">
+      <div class="col-md-4">
+        <div class="card h-100 text-center">
+          <div class="card-header">WhatsApp Login</div>
+          <div class="card-body">
+            <img id="qr" class="img-fluid d-none" alt="QR code" />
+          </div>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <div class="row g-4">
+          <div class="col-12">
+            <div class="card h-100">
+              <div class="card-header">Unclaimed OTPs</div>
+              <div class="card-body p-0">
+                <table class="table table-striped table-sm mb-0" id="otp-table">
+                  <thead><tr><th>Tracking</th><th>OTP</th><th>Age</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="card h-100">
+              <div class="card-header">Deliveries</div>
+              <div class="card-body p-0">
+                <table class="table table-striped table-sm mb-0" id="deliveries-table">
+                  <thead><tr><th>Tracking</th><th>OTP</th><th>Phone</th><th>Status</th><th>Updated</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Live Log</div>
+      <div class="card-body p-0 bg-dark text-success">
+        <pre id="log" class="mb-0 small"></pre>
+      </div>
+    </div>
+  </div>
+  <script src="/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
