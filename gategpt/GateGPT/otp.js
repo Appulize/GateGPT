@@ -3,6 +3,8 @@ const path = require('path');
 const openai = require('./openaiClient');
 const { getConfig } = require('./config');
 const { sendAuto } = require('./messaging');
+const { setStatus } = require('./deliveryLog');
+const state = require('./state');
 
 const DATA_DIR = getConfig('SESSION_DIR', __dirname);
 const OTP_FILE = path.join(DATA_DIR, 'otps.json');
@@ -33,11 +35,17 @@ function cleanupExpired() {
   }
   if (changed) writeJson(OTP_FILE, otps);
   const map = readJson(MAP_FILE, {});
+  let mapChanged = false;
   for (const phone of Object.keys(map)) {
-    map[phone] = map[phone].filter(t => otps[t]);
-    if (!map[phone].length) delete map[phone];
+    const filtered = map[phone].filter(t => otps[t]);
+    if (filtered.length !== map[phone].length) {
+      map[phone] = filtered;
+      mapChanged = true;
+      if (!map[phone].length) delete map[phone];
+    }
   }
-  writeJson(MAP_FILE, map);
+  if (mapChanged) writeJson(MAP_FILE, map);
+  if (changed || mapChanged) state.emit('update');
 }
 
 function saveOtp(tracking, otp) {
@@ -45,6 +53,8 @@ function saveOtp(tracking, otp) {
   otps[tracking] = { otp, timestamp: Date.now() };
   writeJson(OTP_FILE, otps);
   cleanupExpired();
+  setStatus(tracking, 'expected soon');
+  state.emit('update');
 }
 
 function associateTracking(phone, tracking) {
@@ -53,6 +63,8 @@ function associateTracking(phone, tracking) {
   if (!map[phone].includes(tracking)) map[phone].push(tracking);
   writeJson(MAP_FILE, map);
   cleanupExpired();
+  setStatus(tracking, 'out for delivery', phone);
+  state.emit('update');
 }
 
 function getOtp(tracking) {
@@ -70,6 +82,7 @@ function removeTracking(tracking) {
     if (!map[phone].length) delete map[phone];
   }
   writeJson(MAP_FILE, map);
+  state.emit('update');
 }
 
 function removeTrackingForPhone(phone, tracking) {
@@ -82,11 +95,20 @@ function removeTrackingForPhone(phone, tracking) {
     if (!map[phone].length) delete map[phone];
   }
   writeJson(MAP_FILE, map);
+  state.emit('update');
 }
 
 function getTrackingsForPhone(phone) {
   const map = readJson(MAP_FILE, {});
   return map[phone] || [];
+}
+
+function getAllOtpData() {
+  return readJson(OTP_FILE, {});
+}
+
+function getTrackingMap() {
+  return readJson(MAP_FILE, {});
 }
 
 function listUnpairedTrackings() {
@@ -193,5 +215,8 @@ module.exports = {
   associateTracking,
   resolveOtp,
   sendOtp,
-  getOtp
+  getOtp,
+  getTrackingsForPhone,
+  getAllOtpData,
+  getTrackingMap
 };

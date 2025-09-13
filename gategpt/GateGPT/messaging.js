@@ -5,6 +5,10 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { getConfig } = require('./config');
+const { getAllOtpData } = require('./otp');
+const { listDeliveries } = require('./deliveryLog');
+const state = require('./state');
+const { logEmitter, getLogHistory } = require('./logging');
 
 const autoMsgIds = new Set();
 let client;
@@ -47,14 +51,47 @@ function initMessaging({ onMessage, onCall, onReady }) {
   fs.mkdirSync(SESSION_DIR, { recursive: true });
 
   const app = express();
-  app.get('/qr.png', (req, res) => res.sendFile(QR_PNG_PATH));
-  app.get('/', (req, res) =>
-    res.send(`<html><body>
-    <h2>Scan to log in</h2>
-    <img src="qr.png" style="width:300px;height:300px" />
-    <script>setTimeout(()=>location.reload(),5000)</script>
-  </body></html>`)
+  const PUBLIC_DIR = path.join(__dirname, 'public');
+  app.use(express.static(PUBLIC_DIR));
+  app.use(
+    '/bootstrap',
+    express.static(path.join(__dirname, 'node_modules', 'bootstrap', 'dist'))
   );
+  app.use(
+    '/bootstrap-icons',
+    express.static(path.join(__dirname, 'node_modules', 'bootstrap-icons', 'font'))
+  );
+  app.get('/qr.png', (req, res) => res.sendFile(QR_PNG_PATH));
+  const getState = () => ({
+    otps: getAllOtpData(),
+    deliveries: listDeliveries()
+  });
+  app.get('/api/state', (req, res) => {
+    res.json(getState());
+  });
+  app.get('/api/state-stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    const send = () =>
+      res.write(`data: ${JSON.stringify(getState())}\n\n`);
+    send();
+    state.on('update', send);
+    req.on('close', () => state.off('update', send));
+  });
+  app.get('/api/logs', (req, res) => {
+    res.json(getLogHistory());
+  });
+  app.get('/api/log-stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    getLogHistory().forEach(line => res.write(`data: ${line}\n\n`));
+    const send = line => res.write(`data: ${line}\n\n`);
+    logEmitter.on('log', send);
+    req.on('close', () => logEmitter.off('log', send));
+  });
+  app.get('/', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
   app.listen(3000);
 
   client = new Client({
