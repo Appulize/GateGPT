@@ -41,7 +41,7 @@ elif [[ $INPUT =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
     BUILD_ONLY=1
   fi
 else
-  echo "❌ Format must be v1.2.5"; exit 1
+  echo "❌ Format must be v1.2.6"; exit 1
 fi
 echo "Using version: $NEW_TAG"
 
