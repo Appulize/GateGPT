@@ -77,6 +77,8 @@ function initMessaging({ onMessage, onCall, onReady }) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    if (res.flushHeaders) res.flushHeaders();
     const send = () =>
       res.write(`data: ${JSON.stringify(getState())}\n\n`);
     send();
@@ -90,6 +92,8 @@ function initMessaging({ onMessage, onCall, onReady }) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    if (res.flushHeaders) res.flushHeaders();
     getLogHistory().forEach(line => res.write(`data: ${line}\n\n`));
     const send = line => res.write(`data: ${line}\n\n`);
     logEmitter.on('log', send);

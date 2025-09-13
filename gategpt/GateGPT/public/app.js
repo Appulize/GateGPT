@@ -44,23 +44,31 @@ function updateQr() {
     });
 }
 let lastQrId = null;
-
-function initState() {
-  const source = new EventSource('api/state-stream');
-  source.onmessage = e => {
-    const data = JSON.parse(e.data);
-    renderDeliveries(data.deliveries, data.otps);
-    if (data.ready) {
-      document.getElementById('qr').classList.add('d-none');
-      bootstrap.Tab.getOrCreateInstance(document.querySelector('#dashboard-tab')).show();
-    } else {
-      if (data.qrId !== lastQrId) {
-        updateQr();
-        lastQrId = data.qrId;
-      }
-      bootstrap.Tab.getOrCreateInstance(document.querySelector('#login-tab')).show();
+function handleState(data) {
+  renderDeliveries(data.deliveries, data.otps);
+  if (data.ready) {
+    document.getElementById('qr').classList.add('d-none');
+    bootstrap
+      .Tab.getOrCreateInstance(document.querySelector('#dashboard-tab'))
+      .show();
+  } else {
+    if (data.qrId !== lastQrId) {
+      updateQr();
+      lastQrId = data.qrId;
     }
-  };
+    bootstrap.Tab.getOrCreateInstance(
+      document.querySelector('#login-tab')
+    ).show();
+  }
+}
+
+async function initState() {
+  try {
+    const res = await fetch('api/state');
+    handleState(await res.json());
+  } catch {}
+  const source = new EventSource('api/state-stream');
+  source.onmessage = e => handleState(JSON.parse(e.data));
 }
 
 async function initLogs() {
