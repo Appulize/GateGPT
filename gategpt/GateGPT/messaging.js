@@ -1,14 +1,10 @@
 const { Client, LocalAuth, Location } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const qrcodeTerminal = require('qrcode-terminal');
-const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { getConfig } = require('./config');
-const { getAllOtpData } = require('./otp');
-const { listDeliveries } = require('./deliveryLog');
 const state = require('./state');
-const { logEmitter, getLogHistory } = require('./logging');
 
 const autoMsgIds = new Set();
 let client;
@@ -52,91 +48,6 @@ function initMessaging({ onMessage, onCall, onReady }) {
 
   fs.mkdirSync(SESSION_DIR, { recursive: true });
 
-  const app = express();
-  const PUBLIC_DIR = path.join(__dirname, 'public');
-  app.use(express.static(PUBLIC_DIR));
-  app.use(
-    '/bootstrap',
-    express.static(path.join(__dirname, 'node_modules', 'bootstrap', 'dist'))
-  );
-  app.use(
-    '/bootstrap-icons',
-    express.static(path.join(__dirname, 'node_modules', 'bootstrap-icons', 'font'))
-  );
-  app.get('/qr.png', (req, res) => res.sendFile(QR_PNG_PATH));
-  const getState = () => ({
-    ready,
-    qrId,
-    otps: getAllOtpData(),
-    deliveries: listDeliveries()
-  });
-  app.get('/api/state', (req, res) => {
-    res.json(getState());
-  });
-  app.get('/api/state-stream', (req, res) => {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-    if (res.flushHeaders) res.flushHeaders();
-    const send = () =>
-      res.write(`data: ${JSON.stringify(getState())}\n\n`);
-    send();
-    state.on('update', send);
-    req.on('close', () => state.off('update', send));
-  });
-  app.get('/api/logs', (req, res) => {
-    res.json(getLogHistory());
-  });
-  app.get('/api/log-stream', (req, res) => {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-    if (res.flushHeaders) res.flushHeaders();
-    getLogHistory().forEach(line => res.write(`data: ${line}\n\n`));
-    const send = line => res.write(`data: ${line}\n\n`);
-    logEmitter.on('log', send);
-    req.on('close', () => logEmitter.off('log', send));
-  });
-  app.get('/api/settings', (req, res) => {
-    const samplePath = path.join(__dirname, 'config.sample.json');
-    const configPath = path.join(__dirname, 'config.json');
-    let sample = {};
-    let config = {};
-    try {
-      sample = JSON.parse(fs.readFileSync(samplePath, 'utf8'));
-    } catch {}
-    try {
-      config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    } catch {}
-    const keys = new Set([...Object.keys(sample), ...Object.keys(config), 'SESSION_DIR']);
-    const settings = {};
-    keys.forEach(k => {
-      const val = process.env[k] !== undefined ? process.env[k] : config[k];
-      if (val !== undefined) settings[k] = val;
-    });
-    const redacted = {};
-    for (const [k, v] of Object.entries(settings)) {
-      let val = v;
-      if (typeof val === 'object') val = JSON.stringify(val);
-      const isSecret =
-        typeof val === 'string' &&
-        (/(TOKEN|SECRET|PASSWORD|PUSHOVER)/i.test(k) ||
-          (/KEY$/i.test(k) && !/KEYWORDS$/i.test(k)));
-      if (isSecret) {
-        const start = val.slice(0, 4);
-        const end = val.slice(-4);
-        redacted[k] = `${start}****${end}`;
-      } else {
-        redacted[k] = val;
-      }
-    }
-    res.json(redacted);
-  });
-  app.get('/', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
-  app.listen(3000);
-
   client = new Client({
     authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
     webVersion: '2.3000.1026863126',
@@ -172,10 +83,15 @@ function initMessaging({ onMessage, onCall, onReady }) {
   client.initialize();
 }
 
+function getStatus() {
+  return { ready, qrId };
+}
+
 module.exports = {
   initMessaging,
   sendAuto,
   isAutoMessage,
   getChatById,
-  Location
+  Location,
+  getStatus
 };

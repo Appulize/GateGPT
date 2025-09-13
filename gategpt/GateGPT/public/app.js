@@ -31,12 +31,14 @@ function renderDeliveries(deliveries, otps) {
   });
 }
 
+const base = window.location.pathname.replace(/\/?$/, '/');
+
 function updateQr() {
   const img = document.getElementById('qr');
-  fetch('qr.png')
+  fetch(base + 'qr.png')
     .then(res => {
       if (!res.ok) throw new Error('no qr');
-      img.src = 'qr.png?' + Date.now();
+      img.src = base + 'qr.png?' + Date.now();
       img.classList.remove('d-none');
     })
     .catch(() => {
@@ -44,6 +46,7 @@ function updateQr() {
     });
 }
 let lastQrId = null;
+
 function handleState(data) {
   renderDeliveries(data.deliveries, data.otps);
   if (data.ready) {
@@ -64,22 +67,26 @@ function handleState(data) {
 
 async function initState() {
   try {
-    const res = await fetch('api/state');
+    const res = await fetch(base + 'api/state');
     handleState(await res.json());
   } catch {}
-  const source = new EventSource('api/state-stream');
+  const source = new EventSource(base + 'api/state-stream', {
+    withCredentials: true
+  });
   source.onmessage = e => handleState(JSON.parse(e.data));
 }
 
 async function initLogs() {
   try {
-    const res = await fetch('api/logs');
+    const res = await fetch(base + 'api/logs');
     const logs = await res.json();
     const logEl = document.getElementById('log');
     logEl.textContent = logs.join('\n');
     logEl.scrollTop = logEl.scrollHeight;
   } catch {}
-  const source = new EventSource('api/log-stream');
+  const source = new EventSource(base + 'api/log-stream', {
+    withCredentials: true
+  });
   const logEl = document.getElementById('log');
   source.onmessage = e => {
     logEl.textContent += '\n' + e.data;
@@ -89,7 +96,7 @@ async function initLogs() {
 
 async function initSettings() {
   try {
-    const res = await fetch('api/settings');
+    const res = await fetch(base + 'api/settings');
     const settings = await res.json();
     const tbody = document.querySelector('#settings-table tbody');
     Object.entries(settings).forEach(([k, v]) => {

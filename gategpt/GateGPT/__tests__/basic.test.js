@@ -35,6 +35,7 @@ jest.mock('../messaging', () => {
     isAutoMessage: () => false,
     getChatById: async () => chat,
     Location,
+    getStatus: () => ({ ready: true, qrId: 0 }),
     __handlers: handlers,
     __chat: chat
   };

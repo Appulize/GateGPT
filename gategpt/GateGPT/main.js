@@ -17,6 +17,7 @@ const {
   isAutoMessage,
   getChatById
 } = require('./messaging');
+const { initServer } = require('./server');
 const { sendLocation, openGate } = require('./actions');
 const {
   processOtpMessage,
@@ -28,6 +29,7 @@ const {
 const { setStatus } = require('./deliveryLog');
 
 initLogging();
+initServer();
 
 /* ──────────────────────── 🔧  CONFIG FILE HANDLING  ───────────────────────── */
 const DATA_DIR = getConfig('SESSION_DIR', __dirname);
