@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const openai = require('./openaiClient');
 const { getConfig } = require('./config');
+const { getModelRequestOptions } = require('./modelOptions');
 const { setStatus } = require('./deliveryLog');
 const state = require('./state');
 
@@ -197,7 +198,7 @@ function listUnpairedTrackings() {
 async function processOtpMessage(message) {
   const body = (message.body || '').trim();
   if (!body) return;
-  const model = getConfig('CHATGPT_MODEL', 'gpt-4.1');
+  const model = getConfig('CHATGPT_MODEL', 'gpt-5-mini');
 
   const request = {
     model,
@@ -227,7 +228,8 @@ async function processOtpMessage(message) {
       }
     ],
     tool_choice: 'auto',
-    parallel_tool_calls: true
+    parallel_tool_calls: true,
+    ...getModelRequestOptions(model)
   };
 
   const response = await openai.chat.completions.create(request);

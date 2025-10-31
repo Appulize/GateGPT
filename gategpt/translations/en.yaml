@@ -38,6 +38,12 @@ configuration:
   CHATGPT_MODEL:
     name: ChatGPT model
     description: OpenAI model name the bot should use.
+  CHATGPT_EFFORT:
+    name: GPT-5 reasoning effort
+    description: Select how much reasoning effort GPT-5 models should apply (minimal, low, medium, or high).
+  CHATGPT_VERBOSITY:
+    name: GPT-5 response verbosity
+    description: Controls how verbose GPT-5 model replies should be (low, medium, or high).
   CHATGPT_SYSTEM_PROMPT:
     name: ChatGPT system prompt
     description: System prompt injected into every OpenAI request; tweak the bot’s personality here.

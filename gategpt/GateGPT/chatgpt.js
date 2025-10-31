@@ -1,5 +1,6 @@
 const openai = require('./openaiClient');
 const { getConfig } = require('./config');
+const { getModelRequestOptions } = require('./modelOptions');
 
 const tools = [
   {
@@ -66,7 +67,7 @@ const tools = [
   }
 ];
 
-const DEFAULT_MODEL = 'gpt-4.1';
+const DEFAULT_MODEL = 'gpt-5-mini';
 
 async function askChatGPT(messages) {
   // Build Chat Completions-style messages with optional image parts
@@ -111,7 +112,8 @@ async function askChatGPT(messages) {
     ],
     tools,
     tool_choice: 'auto',
-    parallel_tool_calls: true
+    parallel_tool_calls: true,
+    ...getModelRequestOptions(model)
   };
 
   const response = await openai.chat.completions.create(request);
