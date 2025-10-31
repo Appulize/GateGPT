@@ -1,7 +1,11 @@
 # syntax=docker/dockerfile:1.6
 
-#FROM ghcr.io/home-assistant/amd64-base:3.19    AS base_amd64
-#FROM ghcr.io/home-assistant/aarch64-base:3.19  AS base_arm64
+FROM --platform=$BUILDPLATFORM node:20.15.1-alpine AS deps
+WORKDIR /opt/gategpt
+COPY GateGPT/package.json GateGPT/package-lock.json ./
+RUN npm ci --omit=dev --no-progress \
+ && npm cache clean --force
+
 FROM --platform=linux/amd64 alpine:3.19  AS base_amd64
 FROM --platform=linux/arm64 alpine:3.19  AS base_arm64
 
@@ -16,13 +20,13 @@ RUN apk add --no-cache \
       ca-certificates nodejs npm python3 make g++ tini
 
 WORKDIR /opt/gategpt
+COPY GateGPT/package.json GateGPT/package-lock.json ./
+COPY --from=deps /opt/gategpt/node_modules ./node_modules
 COPY GateGPT/ .
-
-RUN npm ci --omit=dev --no-progress \
- && npm cache clean --force
 
 ENV NODE_ENV=production
 ENV SESSION_DIR=/data
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "main.js"]
+
