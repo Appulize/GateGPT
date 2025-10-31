@@ -15,6 +15,40 @@ const statusIcons = {
   delivered: 'check-circle'
 };
 
+const completedStatuses = new Set(['delivered']);
+
+const base = window.location.pathname.replace(/\/?$/, '/');
+
+async function requestDelete(tracking, button) {
+  if (!tracking) return;
+  const confirmed = window.confirm(
+    `Delete delivery ${tracking}? This will also remove the OTP.`
+  );
+  if (!confirmed) return;
+
+  button.disabled = true;
+  try {
+    const res = await fetch(
+      `${base}api/deliveries/${encodeURIComponent(tracking)}`,
+      { method: 'DELETE' }
+    );
+    if (!res.ok) {
+      button.disabled = false;
+      let message = 'Failed to delete delivery.';
+      try {
+        const data = await res.json();
+        if (data?.error) message = data.error;
+      } catch {}
+      window.alert(message);
+    }
+  } catch {
+    button.disabled = false;
+    window.alert(
+      'Failed to delete delivery. Please check your connection and try again.'
+    );
+  }
+}
+
 function renderDeliveries(deliveries, otps) {
   const tbody = document.querySelector('#deliveries-table tbody');
   tbody.innerHTML = '';
@@ -22,16 +56,57 @@ function renderDeliveries(deliveries, otps) {
     const tr = document.createElement('tr');
     const otp = otps[d.tracking]?.otp || '';
     const phoneRaw = d.chatId ? d.chatId.split('@')[0] : '';
-    const phoneLink = phoneRaw
-      ? `<a href="https://wa.me/${phoneRaw}" target="_blank" rel="noopener">${phoneRaw}</a>`
-      : '';
     const icon = statusIcons[d.status] || 'question-circle';
-    tr.innerHTML = `<td>${d.tracking}</td><td>${otp}</td><td>${phoneLink}</td><td class="status"><i class="bi bi-${icon}"></i> ${d.status}</td><td>${formatAge(d.updated)}</td>`;
+    const trackingTd = document.createElement('td');
+    trackingTd.textContent = d.tracking || '';
+    tr.appendChild(trackingTd);
+
+    const otpTd = document.createElement('td');
+    otpTd.textContent = otp;
+    tr.appendChild(otpTd);
+
+    const phoneTd = document.createElement('td');
+    if (phoneRaw) {
+      const link = document.createElement('a');
+      link.href = `https://wa.me/${phoneRaw}`;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = phoneRaw;
+      phoneTd.appendChild(link);
+    }
+    tr.appendChild(phoneTd);
+
+    const statusTd = document.createElement('td');
+    statusTd.classList.add('status');
+    const statusIcon = document.createElement('i');
+    statusIcon.className = `bi bi-${icon}`;
+    statusTd.appendChild(statusIcon);
+    statusTd.appendChild(document.createTextNode(` ${d.status}`));
+    tr.appendChild(statusTd);
+
+    const updatedTd = document.createElement('td');
+    updatedTd.textContent = formatAge(d.updated);
+    tr.appendChild(updatedTd);
+
+    const actionsTd = document.createElement('td');
+    actionsTd.classList.add('text-end');
+    if (d.tracking && !completedStatuses.has(d.status)) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-outline-danger btn-sm';
+      btn.title = 'Delete delivery';
+      btn.setAttribute('aria-label', `Delete delivery ${d.tracking}`);
+      const trashIcon = document.createElement('i');
+      trashIcon.className = 'bi bi-trash';
+      btn.appendChild(trashIcon);
+      btn.addEventListener('click', () => requestDelete(d.tracking, btn));
+      actionsTd.appendChild(btn);
+    }
+    tr.appendChild(actionsTd);
+
     tbody.appendChild(tr);
   });
 }
-
-const base = window.location.pathname.replace(/\/?$/, '/');
 
 function updateQr() {
   const img = document.getElementById('qr');

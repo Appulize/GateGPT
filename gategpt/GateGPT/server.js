@@ -2,8 +2,8 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { getConfig } = require('./config');
-const { getAllOtpData } = require('./otp');
-const { listDeliveries } = require('./deliveryLog');
+const { getAllOtpData, clearTracking } = require('./otp');
+const { listDeliveries, removeDelivery } = require('./deliveryLog');
 const state = require('./state');
 const { logEmitter, getLogHistory } = require('./logging');
 const { getStatus } = require('./messaging');
@@ -28,6 +28,39 @@ function initServer() {
 
   app.get('/api/state', (req, res) => {
     res.json(getState());
+  });
+
+  const NON_DELETABLE_STATUSES = new Set(['delivered']);
+
+  app.delete('/api/deliveries/:tracking', (req, res) => {
+    const tracking = (req.params.tracking || '').trim();
+    if (!tracking) {
+      res.status(400).json({ error: 'Tracking number is required.' });
+      return;
+    }
+
+    const deliveries = listDeliveries();
+    const delivery = deliveries.find(d => d.tracking === tracking);
+    if (!delivery) {
+      res.status(404).json({ error: 'Delivery not found.' });
+      return;
+    }
+
+    if (NON_DELETABLE_STATUSES.has(delivery.status)) {
+      res
+        .status(409)
+        .json({ error: 'Delivered items cannot be deleted.' });
+      return;
+    }
+
+    const { removed } = removeDelivery(tracking);
+    if (!removed) {
+      res.status(500).json({ error: 'Unable to delete delivery.' });
+      return;
+    }
+
+    clearTracking(tracking);
+    res.status(204).end();
   });
 
   app.get('/api/state-stream', (req, res) => {

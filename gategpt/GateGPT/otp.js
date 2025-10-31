@@ -129,6 +129,47 @@ function removeTrackingForPhone(phone, tracking) {
   }
 }
 
+function clearTracking(tracking) {
+  if (!tracking) return false;
+
+  const otps = readJson(OTP_FILE, {});
+  let otpChanged = false;
+  if (Object.prototype.hasOwnProperty.call(otps, tracking)) {
+    delete otps[tracking];
+    writeJson(OTP_FILE, otps);
+    otpChanged = true;
+  }
+
+  const map = readJson(MAP_FILE, {});
+  let mapChanged = false;
+  for (const [phone, trackings] of Object.entries(map)) {
+    if (!Array.isArray(trackings)) {
+      delete map[phone];
+      mapChanged = true;
+      continue;
+    }
+    const filtered = trackings.filter(t => t !== tracking);
+    if (filtered.length !== trackings.length) {
+      if (filtered.length) {
+        map[phone] = filtered;
+      } else {
+        delete map[phone];
+      }
+      mapChanged = true;
+    }
+  }
+
+  if (mapChanged) {
+    writeJson(MAP_FILE, map);
+  }
+
+  if (otpChanged || mapChanged) {
+    state.emit('update');
+  }
+
+  return otpChanged || mapChanged;
+}
+
 function getTrackingsForPhone(phone) {
   cleanupExpired();
   const map = readJson(MAP_FILE, {});
@@ -255,5 +296,6 @@ module.exports = {
   getTrackingsForPhone,
   getAllOtpData,
   getTrackingMap,
-  removeTrackingForPhone
+  removeTrackingForPhone,
+  clearTracking
 };
