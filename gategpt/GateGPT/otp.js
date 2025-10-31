@@ -2,7 +2,6 @@ const fs = require('fs');
 const path = require('path');
 const openai = require('./openaiClient');
 const { getConfig } = require('./config');
-const { modelSupportsCustomTemperature, parseTemperature } = require('./model-utils');
 const { setStatus } = require('./deliveryLog');
 const state = require('./state');
 
@@ -230,24 +229,6 @@ async function processOtpMessage(message) {
     tool_choice: 'auto',
     parallel_tool_calls: true
   };
-
-  const configuredTemperature = parseTemperature(
-    getConfig('CHATGPT_TEMPERATURE'),
-    undefined
-  );
-
-  if (modelSupportsCustomTemperature(model)) {
-    if (configuredTemperature !== undefined) {
-      request.temperature = configuredTemperature;
-    }
-  } else if (
-    configuredTemperature !== undefined &&
-    Math.abs(configuredTemperature - 1) > Number.EPSILON
-  ) {
-    console.warn(
-      `⚠️  Model "${model}" only supports the default temperature. Using the built-in value instead.`
-    );
-  }
 
   const response = await openai.chat.completions.create(request);
 

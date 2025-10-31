@@ -1,6 +1,5 @@
 const openai = require('./openaiClient');
 const { getConfig } = require('./config');
-const { modelSupportsCustomTemperature, parseTemperature } = require('./model-utils');
 
 const tools = [
   {
@@ -68,7 +67,6 @@ const tools = [
 ];
 
 const DEFAULT_MODEL = 'gpt-4.1';
-const DEFAULT_TEMPERATURE = 0.5;
 
 async function askChatGPT(messages) {
   // Build Chat Completions-style messages with optional image parts
@@ -99,11 +97,6 @@ async function askChatGPT(messages) {
   });
 
   const model = getConfig('CHATGPT_MODEL', DEFAULT_MODEL);
-  const temperature = parseTemperature(
-    getConfig('CHATGPT_TEMPERATURE'),
-    DEFAULT_TEMPERATURE
-  );
-
   const request = {
     model,
     messages: [
@@ -120,14 +113,6 @@ async function askChatGPT(messages) {
     tool_choice: 'auto',
     parallel_tool_calls: true
   };
-
-  if (modelSupportsCustomTemperature(model)) {
-    request.temperature = temperature;
-  } else if (Math.abs(temperature - 1) > Number.EPSILON) {
-    console.warn(
-      `⚠️  Model "${model}" only supports the default temperature. Using the built-in value instead.`
-    );
-  }
 
   const response = await openai.chat.completions.create(request);
 
