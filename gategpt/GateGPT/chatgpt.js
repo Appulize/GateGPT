@@ -66,6 +66,64 @@ const tools = [
   }
 ];
 
+const DEFAULT_MODEL = 'gpt-4.1';
+const DEFAULT_TEMPERATURE = 0.5;
+
+const FIXED_TEMPERATURE_MODELS = [
+  { prefix: 'gpt-5', temperature: 1 }
+];
+
+function normalizeModelName(model) {
+  return (model || '').toLowerCase();
+}
+
+function getFixedModelTemperature(model) {
+  const normalized = normalizeModelName(model);
+
+  if (!normalized) return null;
+
+  for (const { prefix, temperature } of FIXED_TEMPERATURE_MODELS) {
+    if (normalized.startsWith(prefix)) {
+      return temperature;
+    }
+  }
+
+  return null;
+}
+
+function modelSupportsCustomTemperature(model) {
+  return getFixedModelTemperature(model) === null;
+}
+
+function applyModelAwareTemperature(request, model, requestedTemperature) {
+  const fixed = getFixedModelTemperature(model);
+
+  if (fixed === null) {
+    request.temperature = requestedTemperature;
+    return requestedTemperature;
+  }
+
+  request.temperature = fixed;
+
+  if (Math.abs(requestedTemperature - fixed) > Number.EPSILON) {
+    console.warn(
+      `⚠️  Model "${model}" only supports the default temperature. Using ${fixed} instead.`
+    );
+  }
+
+  return fixed;
+}
+
+function parseTemperature(value, fallback) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 async function askChatGPT(messages) {
   // Build Chat Completions-style messages with optional image parts
   const formatted = messages.flatMap(m => {
@@ -94,9 +152,14 @@ async function askChatGPT(messages) {
     ];
   });
 
-  const response = await openai.chat.completions.create({
-    model: getConfig('CHATGPT_MODEL', 'gpt-4.1'),
-    temperature: 0.5,
+  const model = getConfig('CHATGPT_MODEL', DEFAULT_MODEL);
+  const temperature = parseTemperature(
+    getConfig('CHATGPT_TEMPERATURE'),
+    DEFAULT_TEMPERATURE
+  );
+
+  const request = {
+    model,
     messages: [
       {
         role: 'system',
@@ -110,7 +173,11 @@ async function askChatGPT(messages) {
     tools,
     tool_choice: 'auto',
     parallel_tool_calls: true
-  });
+  };
+
+  applyModelAwareTemperature(request, model, temperature);
+
+  const response = await openai.chat.completions.create(request);
 
   const msg = response.choices[0].message;
   const actions = [];
@@ -136,4 +203,12 @@ async function askChatGPT(messages) {
   return { reply, actions };
 }
 
-module.exports = { askChatGPT, tools };
+module.exports = {
+  askChatGPT,
+  tools,
+  modelSupportsCustomTemperature,
+  applyModelAwareTemperature,
+  parseTemperature,
+  DEFAULT_MODEL,
+  DEFAULT_TEMPERATURE
+};

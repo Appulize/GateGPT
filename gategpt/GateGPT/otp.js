@@ -4,6 +4,7 @@ const openai = require('./openaiClient');
 const { getConfig } = require('./config');
 const { setStatus } = require('./deliveryLog');
 const state = require('./state');
+const { parseTemperature, DEFAULT_MODEL, applyModelAwareTemperature } = require('./chatgpt');
 
 // Defer requiring messaging to avoid circular dependency
 function sendAutoMsg(chat, content, options) {
@@ -197,9 +198,11 @@ function listUnpairedTrackings() {
 async function processOtpMessage(message) {
   const body = (message.body || '').trim();
   if (!body) return;
-  const response = await openai.chat.completions.create({
-    model: getConfig('CHATGPT_MODEL', 'gpt-4.1'),
-    temperature: 0,
+  const model = getConfig('CHATGPT_MODEL', DEFAULT_MODEL);
+  const temperature = parseTemperature(getConfig('CHATGPT_TEMPERATURE'), 0);
+
+  const request = {
+    model,
     messages: [
       {
         role: 'system',
@@ -227,7 +230,11 @@ async function processOtpMessage(message) {
     ],
     tool_choice: 'auto',
     parallel_tool_calls: true
-  });
+  };
+
+  applyModelAwareTemperature(request, model, temperature);
+
+  const response = await openai.chat.completions.create(request);
 
   const msg = response.choices[0].message;
   if (Array.isArray(msg.tool_calls)) {
