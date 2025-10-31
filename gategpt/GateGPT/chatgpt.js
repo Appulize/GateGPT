@@ -1,5 +1,6 @@
 const openai = require('./openaiClient');
 const { getConfig } = require('./config');
+const { modelSupportsCustomTemperature, parseTemperature } = require('./model-utils');
 
 const tools = [
   {
@@ -68,31 +69,6 @@ const tools = [
 
 const DEFAULT_MODEL = 'gpt-4.1';
 const DEFAULT_TEMPERATURE = 0.5;
-
-function normalizeModelName(model) {
-  return (model || '').toLowerCase();
-}
-
-function modelSupportsCustomTemperature(model) {
-  const normalized = normalizeModelName(model);
-
-  // gpt-5 models currently require the default temperature value (1)
-  if (normalized.startsWith('gpt-5')) {
-    return false;
-  }
-
-  return true;
-}
-
-function parseTemperature(value, fallback) {
-  if (value === undefined || value === null || value === '') {
-    return fallback;
-  }
-
-  const parsed = Number(value);
-
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
 
 async function askChatGPT(messages) {
   // Build Chat Completions-style messages with optional image parts
