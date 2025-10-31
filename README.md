@@ -142,6 +142,7 @@ Supported config options:
 | `AUTO_CLOSE_DELAY_MS`  | Delay before auto-closing gate (default: 120000) |
 | `MAX_MESSAGES_PER_HOUR`| Message rate limiter                             |
 | `IGNORE_FILE`          | File path for ignored chat IDs                   |
+| `DATA_RETENTION_DAYS`  | Days to keep delivered packages and OTP codes    |
 | `TRIGGER_KEYWORDS`     | Array of regex strings to detect couriers        |
 | `OTP_TRIGGER_KEYWORDS` | Regex strings that identify OTP messages         |
 | `CHATGPT_SYSTEM_PROMPT`| Prompt used to guide GPT responses               |

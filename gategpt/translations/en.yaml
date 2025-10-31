@@ -23,6 +23,9 @@ configuration:
   MAX_MESSAGES_PER_HOUR:
     name: Rate limit (msgs per hour)
     description: Maximum WhatsApp replies the bot may send in any rolling hour. Per conversation.
+  DATA_RETENTION_DAYS:
+    name: Data retention (days)
+    description: Days to keep delivered packages and OTP codes before automatic cleanup.
   IGNORE_FILE:
     name: Ignore-list file
     description: JSON file where chat IDs to be ignored are stored.
