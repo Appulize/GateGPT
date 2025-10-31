@@ -1,5 +1,5 @@
 /*********************************************************************
- * This is GateGPT v1.2.11 first created by Maciej Swic on 2025-04-25.
+ * This is GateGPT v1.2.12 first created by Maciej Swic on 2025-04-25.
  * Please see the LICENSE file.
 *********************************************************************/
 
