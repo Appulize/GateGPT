@@ -66,6 +66,34 @@ const tools = [
   }
 ];
 
+const DEFAULT_MODEL = 'gpt-4.1';
+const DEFAULT_TEMPERATURE = 0.5;
+
+function normalizeModelName(model) {
+  return (model || '').toLowerCase();
+}
+
+function modelSupportsCustomTemperature(model) {
+  const normalized = normalizeModelName(model);
+
+  // gpt-5 models currently require the default temperature value (1)
+  if (normalized.startsWith('gpt-5')) {
+    return false;
+  }
+
+  return true;
+}
+
+function parseTemperature(value, fallback) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 async function askChatGPT(messages) {
   // Build Chat Completions-style messages with optional image parts
   const formatted = messages.flatMap(m => {
@@ -94,9 +122,14 @@ async function askChatGPT(messages) {
     ];
   });
 
-  const response = await openai.chat.completions.create({
-    model: getConfig('CHATGPT_MODEL', 'gpt-4.1'),
-    temperature: 0.5,
+  const model = getConfig('CHATGPT_MODEL', DEFAULT_MODEL);
+  const temperature = parseTemperature(
+    getConfig('CHATGPT_TEMPERATURE'),
+    DEFAULT_TEMPERATURE
+  );
+
+  const request = {
+    model,
     messages: [
       {
         role: 'system',
@@ -110,7 +143,17 @@ async function askChatGPT(messages) {
     tools,
     tool_choice: 'auto',
     parallel_tool_calls: true
-  });
+  };
+
+  if (modelSupportsCustomTemperature(model)) {
+    request.temperature = temperature;
+  } else if (Math.abs(temperature - 1) > Number.EPSILON) {
+    console.warn(
+      `⚠️  Model "${model}" only supports the default temperature. Using the built-in value instead.`
+    );
+  }
+
+  const response = await openai.chat.completions.create(request);
 
   const msg = response.choices[0].message;
   const actions = [];
