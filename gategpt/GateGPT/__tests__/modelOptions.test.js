@@ -28,8 +28,8 @@ describe('getModelRequestOptions', () => {
     const opts = getModelRequestOptions('gpt-5-mini');
 
     expect(opts).toEqual({
-      reasoning: { effort: 'high' },
-      response_format: { type: 'text', verbosity: 'low' }
+      reasoning_effort: 'high',
+      verbosity: 'low'
     });
   });
 
@@ -42,8 +42,8 @@ describe('getModelRequestOptions', () => {
     const opts = getModelRequestOptions('gpt-5-preview');
 
     expect(opts).toEqual({
-      reasoning: { effort: 'low' },
-      response_format: { type: 'text', verbosity: 'low' }
+      reasoning_effort: 'low',
+      verbosity: 'low'
     });
   });
 });

@@ -36,7 +36,7 @@ describe('askChatGPT GPT-5 options', () => {
 
     expect(openaiMock.chat.completions.create).toHaveBeenCalledTimes(1);
     const request = openaiMock.chat.completions.create.mock.calls[0][0];
-    expect(request.reasoning).toEqual({ effort: 'minimal' });
-    expect(request.response_format).toEqual({ type: 'text', verbosity: 'high' });
+    expect(request.reasoning_effort).toBe('minimal');
+    expect(request.verbosity).toBe('high');
   });
 });

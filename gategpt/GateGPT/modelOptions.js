@@ -56,10 +56,10 @@ function getModelRequestOptions(model) {
 
   const options = {};
   if (effort) {
-    options.reasoning = { effort };
+    options.reasoning_effort = effort;
   }
   if (verbosity) {
-    options.response_format = { type: 'text', verbosity };
+    options.verbosity = verbosity;
   }
   return options;
 }
