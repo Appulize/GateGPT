@@ -60,6 +60,27 @@ function listDeliveries() {
   return cleanup().sort((a, b) => b.updated - a.updated);
 }
 
+function removeDelivery(tracking, { allowedStatuses } = {}) {
+  if (!tracking) return { removed: false, delivery: null };
+  const list = cleanup();
+  const index = list.findIndex(d => d.tracking === tracking);
+  if (index === -1) {
+    return { removed: false, delivery: null };
+  }
+  const delivery = list[index];
+  if (
+    Array.isArray(allowedStatuses) &&
+    allowedStatuses.length > 0 &&
+    !allowedStatuses.includes(delivery.status)
+  ) {
+    return { removed: false, delivery };
+  }
+  list.splice(index, 1);
+  writeAll(list);
+  state.emit('update');
+  return { removed: true, delivery };
+}
+
 cleanup();
 
-module.exports = { setStatus, listDeliveries };
+module.exports = { setStatus, listDeliveries, removeDelivery };
