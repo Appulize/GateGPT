@@ -6,6 +6,16 @@ const state = require('./state');
 const DATA_DIR = getConfig('SESSION_DIR', __dirname);
 const FILE = path.join(DATA_DIR, 'deliveries.json');
 const DAY_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_RETENTION_DAYS = 14;
+
+function getRetentionMs() {
+  const raw = getConfig('DATA_RETENTION_DAYS', DEFAULT_RETENTION_DAYS);
+  const numeric = typeof raw === 'string' ? Number.parseFloat(raw) : Number(raw);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return numeric * DAY_MS;
+  }
+  return DEFAULT_RETENTION_DAYS * DAY_MS;
+}
 
 function readAll() {
   try {
@@ -21,8 +31,9 @@ function writeAll(data) {
 
 function cleanup(list = readAll()) {
   const now = Date.now();
+  const retentionMs = getRetentionMs();
   const cleaned = list.filter(
-    d => !(d.status === 'delivered' && now - d.updated > DAY_MS)
+    d => !(d.status === 'delivered' && now - d.updated > retentionMs)
   );
   if (cleaned.length !== list.length) {
     writeAll(cleaned);
@@ -48,5 +59,7 @@ function setStatus(tracking, status, chatId) {
 function listDeliveries() {
   return cleanup().sort((a, b) => b.updated - a.updated);
 }
+
+cleanup();
 
 module.exports = { setStatus, listDeliveries };

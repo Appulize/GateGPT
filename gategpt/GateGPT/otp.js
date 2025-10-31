@@ -16,6 +16,8 @@ function sendAutoMsg(chat, content, options) {
 const DATA_DIR = getConfig('SESSION_DIR', __dirname);
 const OTP_FILE = path.join(DATA_DIR, 'otps.json');
 const MAP_FILE = path.join(DATA_DIR, 'tracking-map.json');
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_RETENTION_DAYS = 14;
 
 function readJson(file, def) {
   try {
@@ -29,19 +31,55 @@ function writeJson(file, data) {
   fs.writeFileSync(file, JSON.stringify(data));
 }
 
+function getRetentionMs() {
+  const raw = getConfig('DATA_RETENTION_DAYS', DEFAULT_RETENTION_DAYS);
+  const numeric = typeof raw === 'string' ? Number.parseFloat(raw) : Number(raw);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return numeric * DAY_MS;
+  }
+  return DEFAULT_RETENTION_DAYS * DAY_MS;
+}
+
 function cleanupExpired() {
   const otps = readJson(OTP_FILE, {});
-  const week = 7 * 24 * 60 * 60 * 1000;
+  const map = readJson(MAP_FILE, {});
+  const retentionMs = getRetentionMs();
   const now = Date.now();
-  let changed = false;
+  let otpsChanged = false;
   for (const [t, info] of Object.entries(otps)) {
-    if (now - info.timestamp > week) {
+    const timestamp = Number(info?.timestamp);
+    if (!Number.isFinite(timestamp) || now - timestamp > retentionMs) {
       delete otps[t];
-      changed = true;
+      otpsChanged = true;
     }
   }
-  if (changed) {
+
+  let mapChanged = false;
+  const validTrackings = new Set(Object.keys(otps));
+  for (const [phone, trackings] of Object.entries(map)) {
+    if (!Array.isArray(trackings)) {
+      delete map[phone];
+      mapChanged = true;
+      continue;
+    }
+    const filtered = trackings.filter(t => validTrackings.has(t));
+    if (filtered.length !== trackings.length) {
+      if (filtered.length) {
+        map[phone] = filtered;
+      } else {
+        delete map[phone];
+      }
+      mapChanged = true;
+    }
+  }
+
+  if (otpsChanged) {
     writeJson(OTP_FILE, otps);
+  }
+  if (mapChanged) {
+    writeJson(MAP_FILE, map);
+  }
+  if (otpsChanged || mapChanged) {
     state.emit('update');
   }
 }
@@ -66,6 +104,7 @@ function associateTracking(phone, tracking) {
 }
 
 function getOtp(tracking) {
+  cleanupExpired();
   const otps = readJson(OTP_FILE, {});
   return otps[tracking]?.otp;
 }
@@ -75,6 +114,7 @@ function removeOtp(tracking) {
   if (otps[tracking]) {
     delete otps[tracking];
     writeJson(OTP_FILE, otps);
+    cleanupExpired();
     state.emit('update');
   }
 }
@@ -90,19 +130,23 @@ function removeTrackingForPhone(phone, tracking) {
 }
 
 function getTrackingsForPhone(phone) {
+  cleanupExpired();
   const map = readJson(MAP_FILE, {});
   return map[phone] || [];
 }
 
 function getAllOtpData() {
+  cleanupExpired();
   return readJson(OTP_FILE, {});
 }
 
 function getTrackingMap() {
+  cleanupExpired();
   return readJson(MAP_FILE, {});
 }
 
 function listUnpairedTrackings() {
+  cleanupExpired();
   const otps = readJson(OTP_FILE, {});
   const map = readJson(MAP_FILE, {});
   const paired = new Set(Object.values(map).flat());
@@ -199,6 +243,8 @@ async function sendOtp(chat, tracking, phone) {
   await sendAutoMsg(chat, otp);
   removeOtp(tracking);
 }
+
+cleanupExpired();
 
 module.exports = {
   processOtpMessage,
