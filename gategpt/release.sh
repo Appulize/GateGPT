@@ -39,6 +39,9 @@ elif [[ $INPUT =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
   if [[ "$NEW_TAG" == "$OLD_TAG" ]]; then
     echo "⚙️  Same version as current – build images only."
     BUILD_ONLY=1
+  elif git rev-parse -q --verify "$NEW_TAG" >/dev/null; then
+    echo "ℹ️  Tag $NEW_TAG already exists – skipping commit & tag, building only."
+    BUILD_ONLY=1
   fi
 else
   echo "❌ Format must be v1.3.5"; exit 1

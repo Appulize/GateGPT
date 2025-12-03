@@ -41,12 +41,12 @@ describe('data retention', () => {
       ])
     );
 
+    const deliveries = deliveryLog.listDeliveries();
     const persisted = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     expect(persisted.find(d => d.tracking === 'OLD')).toBeUndefined();
     expect(persisted.find(d => d.tracking === 'FRESH')).toBeDefined();
     expect(persisted.find(d => d.tracking === 'ACTIVE')).toBeDefined();
 
-    const deliveries = deliveryLog.listDeliveries();
     expect(deliveries.find(d => d.tracking === 'OLD')).toBeUndefined();
     expect(deliveries.find(d => d.tracking === 'FRESH')).toBeDefined();
     expect(deliveries.find(d => d.tracking === 'ACTIVE')).toBeDefined();
