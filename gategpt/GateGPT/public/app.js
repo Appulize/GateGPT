@@ -49,6 +49,27 @@ async function requestDelete(tracking, button) {
   }
 }
 
+async function requestOtpUpdate(tracking, otp) {
+  if (!tracking) throw new Error('Tracking number is required.');
+  const res = await fetch(
+    `${base}api/otps/${encodeURIComponent(tracking)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ otp })
+    }
+  );
+
+  if (!res.ok) {
+    let message = 'Failed to update OTP.';
+    try {
+      const data = await res.json();
+      if (data?.error) message = data.error;
+    } catch {}
+    throw new Error(message);
+  }
+}
+
 function renderDeliveries(deliveries, otps) {
   const tbody = document.querySelector('#deliveries-table tbody');
   tbody.innerHTML = '';
@@ -62,7 +83,16 @@ function renderDeliveries(deliveries, otps) {
     tr.appendChild(trackingTd);
 
     const otpTd = document.createElement('td');
-    otpTd.textContent = otp;
+    const otpText = document.createElement('span');
+    otpText.textContent = otp;
+    otpTd.appendChild(otpText);
+
+    const otpInput = document.createElement('input');
+    otpInput.type = 'text';
+    otpInput.className = 'form-control form-control-sm d-none';
+    otpInput.value = otp;
+    otpInput.spellcheck = false;
+    otpTd.appendChild(otpInput);
     tr.appendChild(otpTd);
 
     const phoneTd = document.createElement('td');
@@ -90,6 +120,94 @@ function renderDeliveries(deliveries, otps) {
 
     const actionsTd = document.createElement('td');
     actionsTd.classList.add('text-end');
+    if (d.tracking) {
+      let otpValue = otp;
+      let editing = false;
+      let saving = false;
+
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'btn btn-outline-secondary btn-sm me-2';
+      editBtn.title = 'Edit OTP';
+      editBtn.setAttribute('aria-label', `Edit OTP for ${d.tracking}`);
+      const editIcon = document.createElement('i');
+      editIcon.className = 'bi bi-pencil';
+      editBtn.appendChild(editIcon);
+
+      const setEditing = enable => {
+        editing = enable;
+        if (enable) {
+          otpInput.classList.remove('d-none');
+          otpText.classList.add('d-none');
+          otpInput.value = otpValue;
+          editIcon.className = 'bi bi-check';
+          editBtn.title = 'Save OTP';
+          editBtn.setAttribute('aria-label', `Save OTP for ${d.tracking}`);
+          otpInput.focus();
+          otpInput.select();
+        } else {
+          otpInput.classList.add('d-none');
+          otpText.classList.remove('d-none');
+          otpInput.value = otpValue;
+          editIcon.className = 'bi bi-pencil';
+          editBtn.title = 'Edit OTP';
+          editBtn.setAttribute('aria-label', `Edit OTP for ${d.tracking}`);
+        }
+      };
+
+      const cancelEdit = () => {
+        if (saving) return;
+        otpInput.value = otpValue;
+        setEditing(false);
+      };
+
+      const saveOtp = async () => {
+        if (!editing || saving) return;
+        const nextValue = otpInput.value.trim();
+        if (!nextValue) {
+          window.alert('OTP cannot be empty.');
+          otpInput.focus();
+          return;
+        }
+        saving = true;
+        editBtn.disabled = true;
+        otpInput.disabled = true;
+        try {
+          await requestOtpUpdate(d.tracking, nextValue);
+          otpValue = nextValue;
+          otpText.textContent = otpValue;
+          setEditing(false);
+        } catch (err) {
+          window.alert(err?.message || 'Failed to update OTP.');
+          otpInput.focus();
+        } finally {
+          saving = false;
+          editBtn.disabled = false;
+          otpInput.disabled = false;
+        }
+      };
+
+      editBtn.addEventListener('click', () => {
+        if (editing) {
+          saveOtp();
+        } else {
+          setEditing(true);
+        }
+      });
+
+      otpInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveOtp();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          cancelEdit();
+        }
+      });
+
+      actionsTd.appendChild(editBtn);
+    }
+
     if (d.tracking && !completedStatuses.has(d.status)) {
       const btn = document.createElement('button');
       btn.type = 'button';

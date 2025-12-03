@@ -85,13 +85,24 @@ function cleanupExpired() {
   }
 }
 
-function saveOtp(tracking, otp) {
+function persistOtp(tracking, otp, { updateStatus } = { updateStatus: true }) {
   const otps = readJson(OTP_FILE, {});
   otps[tracking] = { otp, timestamp: Date.now() };
   writeJson(OTP_FILE, otps);
   cleanupExpired();
-  setStatus(tracking, 'expected soon');
-  state.emit('update');
+  if (updateStatus) {
+    setStatus(tracking, 'expected soon');
+  } else {
+    state.emit('update');
+  }
+}
+
+function saveOtp(tracking, otp) {
+  persistOtp(tracking, otp, { updateStatus: true });
+}
+
+function updateOtp(tracking, otp) {
+  persistOtp(tracking, otp, { updateStatus: false });
 }
 
 function associateTracking(phone, tracking) {
@@ -302,5 +313,6 @@ module.exports = {
   getAllOtpData,
   getTrackingMap,
   removeTrackingForPhone,
-  clearTracking
+  clearTracking,
+  updateOtp
 };
