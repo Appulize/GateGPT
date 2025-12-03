@@ -70,6 +70,10 @@ async function requestOtpUpdate(tracking, otp) {
   }
 }
 
+let latestState = null;
+let activeEditors = 0;
+let pendingRender = false;
+
 function renderDeliveries(deliveries, otps) {
   const tbody = document.querySelector('#deliveries-table tbody');
   tbody.innerHTML = '';
@@ -134,9 +138,18 @@ function renderDeliveries(deliveries, otps) {
       editIcon.className = 'bi bi-pencil';
       editBtn.appendChild(editIcon);
 
+      const syncPendingState = () => {
+        if (activeEditors === 0 && pendingRender && latestState) {
+          pendingRender = false;
+          renderDeliveries(latestState.deliveries, latestState.otps);
+        }
+      };
+
       const setEditing = enable => {
+        if (editing === enable) return;
         editing = enable;
         if (enable) {
+          activeEditors += 1;
           otpInput.classList.remove('d-none');
           otpText.classList.add('d-none');
           otpInput.value = otpValue;
@@ -146,12 +159,14 @@ function renderDeliveries(deliveries, otps) {
           otpInput.focus();
           otpInput.select();
         } else {
+          activeEditors = Math.max(0, activeEditors - 1);
           otpInput.classList.add('d-none');
           otpText.classList.remove('d-none');
           otpInput.value = otpValue;
           editIcon.className = 'bi bi-pencil';
           editBtn.title = 'Edit OTP';
           editBtn.setAttribute('aria-label', `Edit OTP for ${d.tracking}`);
+          syncPendingState();
         }
       };
 
@@ -240,8 +255,19 @@ function updateQr() {
 }
 let lastQrId = null;
 
+const queueRender = () => {
+  if (!latestState) return;
+  if (activeEditors > 0) {
+    pendingRender = true;
+    return;
+  }
+  pendingRender = false;
+  renderDeliveries(latestState.deliveries, latestState.otps);
+};
+
 function handleState(data) {
-  renderDeliveries(data.deliveries, data.otps);
+  latestState = data;
+  queueRender();
   if (data.ready) {
     document.getElementById('qr').classList.add('d-none');
     bootstrap
