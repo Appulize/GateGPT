@@ -2,7 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { getConfig } = require('./config');
-const { getAllOtpData, clearTracking } = require('./otp');
+const { getAllOtpData, clearTracking, updateOtp } = require('./otp');
 const { listDeliveries, removeDelivery } = require('./deliveryLog');
 const state = require('./state');
 const { logEmitter, getLogHistory } = require('./logging');
@@ -15,6 +15,7 @@ function initServer() {
   const PUBLIC_DIR = path.join(__dirname, 'public');
 
   const app = express();
+  app.use(express.json({ limit: '1mb' }));
   app.use(express.static(PUBLIC_DIR));
   app.use('/bootstrap', express.static(path.join(__dirname, 'node_modules', 'bootstrap', 'dist')));
   app.use('/bootstrap-icons', express.static(path.join(__dirname, 'node_modules', 'bootstrap-icons', 'font')));
@@ -28,6 +29,34 @@ function initServer() {
 
   app.get('/api/state', (req, res) => {
     res.json(getState());
+  });
+
+  app.put('/api/otps/:tracking', (req, res) => {
+    const tracking = (req.params.tracking || '').trim();
+    if (!tracking) {
+      res.status(400).json({ error: 'Tracking number is required.' });
+      return;
+    }
+
+    const otpInput = typeof req.body?.otp === 'string' ? req.body.otp.trim() : '';
+    if (!otpInput) {
+      res.status(400).json({ error: 'OTP is required.' });
+      return;
+    }
+    if (otpInput.length > 100) {
+      res.status(400).json({ error: 'OTP is too long.' });
+      return;
+    }
+
+    const deliveries = listDeliveries();
+    const delivery = deliveries.find(d => d.tracking === tracking);
+    if (!delivery) {
+      res.status(404).json({ error: 'Delivery not found.' });
+      return;
+    }
+
+    updateOtp(tracking, otpInput);
+    res.json({ otp: otpInput });
   });
 
   const NON_DELETABLE_STATUSES = new Set(['delivered']);
