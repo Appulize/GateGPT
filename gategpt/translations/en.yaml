@@ -35,6 +35,9 @@ configuration:
   OTP_TRIGGER_KEYWORDS:
     name: OTP Trigger keywords / regex
     description: Words or regex patterns that flag a message as an OTP code.
+  WEB_VERSION:
+    name: WhatsApp Web version
+    description: Pinned WhatsApp web client version (optional).
   CHATGPT_MODEL:
     name: ChatGPT model
     description: OpenAI model name the bot should use.
