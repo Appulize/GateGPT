@@ -4,6 +4,7 @@
   "OPENAI_API_KEY": "You can create a key here https://platform.openai.com/settings/organization/api-keys",
   "PUSHOVER_TOKEN": "Create an application on pushover.net and copy its API token here",
   "PUSHOVER_USER": "Your user key from https://pushover.net",
+  "MIRROR_WA_MESSAGES": true,
   "RESPONSE_DELAY_MS": 10000,
   "AUTO_CLOSE_DELAY_MS": 120000,
   "MAX_MESSAGES_PER_HOUR": 20,
