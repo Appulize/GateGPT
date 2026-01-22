@@ -31,14 +31,12 @@ function initMessaging({ onMessage, onCall, onReady }) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   const QR_PNG_PATH = path.join(DATA_DIR, 'qr.png');
   const SESSION_DIR = path.join(DATA_DIR, 'whatsapp-auth');
-  const CACHE_DIR = path.join(__dirname, '.wwebjs_cache');
   const LEGACY_AUTH_DIR = path.join(__dirname, '.wwebjs_auth');
 
   const RESET_SESSION = String(getConfig('RESET_SESSION', 'false')).toLowerCase() === 'true';
   if (RESET_SESSION) {
     try {
       fs.rmSync(SESSION_DIR, { recursive: true, force: true });
-      fs.rmSync(CACHE_DIR, { recursive: true, force: true });
       fs.rmSync(LEGACY_AUTH_DIR, { recursive: true, force: true });
       console.log('🗑️  Cleared WhatsApp auth and cache directories');
     } catch (err) {
@@ -50,8 +48,6 @@ function initMessaging({ onMessage, onCall, onReady }) {
 
   client = new Client({
     authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
-    webVersion: '2.3000.1026863126',
-    webVersionCache: { type: 'local', path: CACHE_DIR },
     puppeteer: {
       headless: true,
       args: [
