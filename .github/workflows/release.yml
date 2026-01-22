@@ -65,13 +65,28 @@ jobs:
           OLD_VER: ${{ steps.prep.outputs.old_ver }}
           NEW_TAG: ${{ steps.prep.outputs.new_tag }}
           NEW_VER: ${{ steps.prep.outputs.new_ver }}
-          EXCLUDE_RE: '\\.git|vendor|node_modules|gategpt/GateGPT/node_modules|package-lock\\.json|yarn\\.lock|pnpm-lock\\.yaml'
+          EXCLUDE_RE: '\\.git|vendor|node_modules|gategpt/GateGPT/node_modules|package\\.json|package-lock\\.json|yarn\\.lock|pnpm-lock\\.yaml'
         run: |
           echo "🔄 Updating version strings…"
-          pushd gategpt/GateGPT >/dev/null
-          npm version --no-git-tag-version "$NEW_VER"
-          npm install --package-lock-only --omit=dev
-          popd >/dev/null
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const newVer = process.env.NEW_VER;
+          if (!newVer) {
+            throw new Error('NEW_VER is required');
+          }
+          const pkgPath = path.join('gategpt', 'GateGPT', 'package.json');
+          const lockPath = path.join('gategpt', 'GateGPT', 'package-lock.json');
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+          pkg.version = newVer;
+          fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+          const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+          lock.version = newVer;
+          if (lock.packages && lock.packages['']) {
+            lock.packages[''].version = newVer;
+          }
+          fs.writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
+          NODE
           git ls-files -z | grep -vzE "$EXCLUDE_RE" | xargs -0 perl -pi -e "s/\\Q$OLD_TAG\\E/$NEW_TAG/g; s/\\Q$OLD_VER\\E/$NEW_VER/g"
           git add -u
           git commit -m "🔖 Bump version to $NEW_TAG"
