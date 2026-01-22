@@ -57,7 +57,7 @@
     "IGNORE_FILE": "str",
     "TRIGGER_KEYWORDS": "str",
     "OTP_TRIGGER_KEYWORDS": "str",
-    "WEB_VERSION": "str",
+    "WEB_VERSION": "str?",
     "CHATGPT_MODEL": "str",
     "CHATGPT_EFFORT": "str",
     "CHATGPT_VERBOSITY": "str",
