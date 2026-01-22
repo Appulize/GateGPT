@@ -32,6 +32,10 @@ function initMessaging({ onMessage, onCall, onReady }) {
   const QR_PNG_PATH = path.join(DATA_DIR, 'qr.png');
   const SESSION_DIR = path.join(DATA_DIR, 'whatsapp-auth');
   const LEGACY_AUTH_DIR = path.join(__dirname, '.wwebjs_auth');
+  const CACHE_DIR = path.join(DATA_DIR, '.wwebjs_cache');
+  const DEFAULT_WEB_VERSION = '2.3000.1031490220-alpha';
+  const webVersionConfig = String(getConfig('WEB_VERSION', '')).trim();
+  const WEB_VERSION = webVersionConfig || DEFAULT_WEB_VERSION;
 
   const RESET_SESSION = String(getConfig('RESET_SESSION', 'false')).toLowerCase() === 'true';
   if (RESET_SESSION) {
@@ -45,6 +49,7 @@ function initMessaging({ onMessage, onCall, onReady }) {
   }
 
   fs.mkdirSync(SESSION_DIR, { recursive: true });
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
 
   client = new Client({
     authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
@@ -57,7 +62,12 @@ function initMessaging({ onMessage, onCall, onReady }) {
         '--no-zygote',               // don't use a zygote process
         '--disable-gpu'              // no GPU in container
       ]
-    }
+    },
+    webVersionCache: {
+      type: 'local',
+      path: CACHE_DIR
+    },
+    webVersion: WEB_VERSION
   });
 
   client.on('qr', async qr => {
