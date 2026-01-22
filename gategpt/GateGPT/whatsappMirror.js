@@ -1,5 +1,5 @@
 const axios = require('axios');
-const sharp = require('sharp');
+const Jimp = require('jimp');
 const { getConfig } = require('./config');
 const { sendPushoverNotification } = require('./notifications');
 
@@ -67,12 +67,12 @@ async function fetchAvatarBuffer(contact) {
 
     const response = await axios.get(url, { responseType: 'arraybuffer' });
     const buffer = Buffer.from(response.data);
-    const resized = await sharp(buffer)
-      .resize(DEFAULT_AVATAR_SIZE, DEFAULT_AVATAR_SIZE, { fit: 'cover' })
-      .jpeg({ quality: 70 })
-      .toBuffer();
+    const image = await Jimp.read(buffer);
 
-    return resized;
+    image.cover(DEFAULT_AVATAR_SIZE, DEFAULT_AVATAR_SIZE);
+    image.quality(70);
+
+    return await image.getBufferAsync(Jimp.MIME_JPEG);
   } catch (err) {
     console.warn('⚠️  Failed to fetch or resize avatar:', err.message);
     return null;
