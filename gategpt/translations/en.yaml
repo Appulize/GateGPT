@@ -14,6 +14,9 @@ configuration:
   PUSHOVER_USER:
     name: Pushover user key
     description: The user key that receives Pushover messages.
+  MIRROR_WA_MESSAGES:
+    name: Mirror WhatsApp messages
+    description: Send incoming WhatsApp messages to Pushover unless the chat is muted in WhatsApp.
   RESPONSE_DELAY_MS:
     name: Response delay (ms)
     description: Milliseconds to wait before the bot answers a courier.

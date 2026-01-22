@@ -19,6 +19,7 @@ const {
 } = require('./messaging');
 const { initServer } = require('./server');
 const { sendLocation, openGate } = require('./actions');
+const { mirrorIncomingMessage } = require('./whatsappMirror');
 const {
   processOtpMessage,
   associateTracking,
@@ -77,6 +78,7 @@ async function handleMessage(message) {
   if (isAutoMessage(message)) return;
 
   const chat = await message.getChat();
+  await mirrorIncomingMessage(message, chat);
   const chatId = chat.id._serialized;
   const msgText = (message.body || '').trim().toLowerCase();
 
