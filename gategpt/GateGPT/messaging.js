@@ -12,10 +12,29 @@ let ready = false;
 let qrId = 0;
 
 async function sendAuto(chat, content, options = {}) {
-  const msg = await chat.sendMessage(content, options);
-  autoMsgIds.add(msg?.id?._serialized);
-  setTimeout(() => autoMsgIds.delete(msg?.id?._serialized), 60 * 60 * 1000);
-  return msg;
+  try {
+    const msg = await chat.sendMessage(content, options);
+    autoMsgIds.add(msg?.id?._serialized);
+    setTimeout(() => autoMsgIds.delete(msg?.id?._serialized), 60 * 60 * 1000);
+    return msg;
+  } catch (err) {
+    const chatId = chat?.id?._serialized ?? chat?.id;
+    if (!chatId) {
+      throw err;
+    }
+
+    try {
+      const msg = await client.sendMessage(chatId, content, {
+        ...options,
+        sendSeen: false
+      });
+      autoMsgIds.add(msg?.id?._serialized);
+      setTimeout(() => autoMsgIds.delete(msg?.id?._serialized), 60 * 60 * 1000);
+      return msg;
+    } catch (fallbackErr) {
+      throw fallbackErr;
+    }
+  }
 }
 
 function isAutoMessage(message) {
@@ -46,7 +65,8 @@ function initMessaging({ onMessage, onCall, onReady }) {
 
   fs.mkdirSync(SESSION_DIR, { recursive: true });
 
-  client = new Client({
+  const webVersion = String(getConfig('WEB_VERSION', '')).trim();
+  const clientOptions = {
     authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
     puppeteer: {
       headless: true,
@@ -58,7 +78,15 @@ function initMessaging({ onMessage, onCall, onReady }) {
         '--disable-gpu'              // no GPU in container
       ]
     }
-  });
+  };
+
+  if (webVersion) {
+    clientOptions.webVersion = webVersion;
+  } else {
+    clientOptions.webVersion = null;
+  }
+
+  client = new Client(clientOptions);
 
   client.on('qr', async qr => {
     qrcodeTerminal.generate(qr, { small: true });
