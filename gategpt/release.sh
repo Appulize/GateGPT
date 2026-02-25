@@ -1,9 +1,63 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Always operate relative to this script's directory (`gategpt`), no matter
+# where the script is invoked from.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 DOCKER_REPO="maciekish/gategpt"
 PKG_DIR="GateGPT"                        # <-- where package.json lives
-EXCLUDE_RE='\.git|vendor|node_modules|GateGPT/node_modules|package-lock\.json|yarn\.lock|pnpm-lock\.yaml'
+PKG_JSON="$PKG_DIR/package.json"
+LOCK_JSON="$PKG_DIR/package-lock.json"
+ADDON_JSON="config.json"
+BAKE_HCL="docker-bake.hcl"
+MAIN_JS="$PKG_DIR/main.js"
+
+##############################################################################
+# Update only known GateGPT version fields. Never do recursive replacements.
+##############################################################################
+set_gategpt_versions() {
+  local new_ver="$1"
+
+  node - "$PKG_JSON" "$LOCK_JSON" "$ADDON_JSON" "$new_ver" <<'NODE'
+const fs = require('fs');
+const [pkgPath, lockPath, addonPath, version] = process.argv.slice(2);
+
+const writeJson = (filePath, mutate) => {
+  const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  mutate(data);
+  fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`);
+};
+
+writeJson(pkgPath, data => {
+  if (typeof data !== 'object' || data === null) {
+    throw new Error(`Invalid JSON in ${pkgPath}`);
+  }
+  data.version = version;
+});
+
+writeJson(lockPath, data => {
+  if (typeof data !== 'object' || data === null) {
+    throw new Error(`Invalid JSON in ${lockPath}`);
+  }
+  data.version = version;
+  if (data.packages && data.packages['']) {
+    data.packages[''].version = version;
+  }
+});
+
+writeJson(addonPath, data => {
+  if (typeof data !== 'object' || data === null) {
+    throw new Error(`Invalid JSON in ${addonPath}`);
+  }
+  data.version = version;
+});
+NODE
+
+  perl -pi -e 's/(variable "GATEGPT_VERSION" \{ default = ")[^"]+(" \})/$1'"$new_ver"'$2/' "$BAKE_HCL"
+  perl -pi -e 's/(This is GateGPT v)[0-9]+\.[0-9]+\.[0-9]+/$1'"$new_ver"'/' "$MAIN_JS"
+}
 
 ##############################################################################
 # Decide whether we need sudo for Docker
@@ -44,27 +98,18 @@ elif [[ $INPUT =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
     BUILD_ONLY=1
   fi
 else
-  echo "❌ Format must be v1.4.2"; exit 1
+  echo "❌ Format must be vX.Y.Z"; exit 1
 fi
 echo "Using version: $NEW_TAG"
 
 ##############################################################################
-# 3. Update sources & lock file (unless build-only)
+# 3. Update versions (unless build-only)
 ##############################################################################
 if [[ $BUILD_ONLY -eq 0 ]]; then
-  echo "🔄 Updating version strings…"
+  echo "🔄 Updating GateGPT version fields only…"
+  set_gategpt_versions "$NEW_VER"
 
-  # --- bump package.json + regenerate lock, but INSIDE $PKG_DIR ---
-  pushd "$PKG_DIR" >/dev/null
-  npm version --no-git-tag-version "$NEW_VER"
-  npm install --package-lock-only --omit=dev
-  popd >/dev/null
-
-  # Replace remaining occurrences, skipping lock files
-  git ls-files -z | grep -vzE "$EXCLUDE_RE" |
-    xargs -0 perl -pi -e 's/\Q'"$OLD_TAG"'\E/'"$NEW_TAG"'/g; s/\Q'"$OLD_VER"'\E/'"$NEW_VER"'/g'
-
-  git add -u
+  git add "$PKG_JSON" "$LOCK_JSON" "$ADDON_JSON" "$BAKE_HCL" "$MAIN_JS"
   git commit -m "🔖 Bump version to $NEW_TAG"
   git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
   git push && git push --tags
