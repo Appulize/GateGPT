@@ -82,6 +82,7 @@ async function fetchAvatarBuffer(contact) {
 async function mirrorIncomingMessage(message, chat) {
   if (!isMirrorEnabled()) return;
   if (!message || message.fromMe || message.isStatus) return;
+  if (message.type === 'e2e_notification') return;
   if (chat?.isMuted) return;
 
   try {
