@@ -1,4 +1,5 @@
 const { Client, LocalAuth, Location } = require('whatsapp-web.js');
+const { version: whatsappWebJsVersion } = require('whatsapp-web.js/package.json');
 const qrcode = require('qrcode');
 const qrcodeTerminal = require('qrcode-terminal');
 const fs = require('fs');
@@ -51,12 +52,18 @@ function initMessaging({ onMessage, onCall, onReady }) {
   const QR_PNG_PATH = path.join(DATA_DIR, 'qr.png');
   const SESSION_DIR = path.join(DATA_DIR, 'whatsapp-auth');
   const LEGACY_AUTH_DIR = path.join(__dirname, '.wwebjs_auth');
+  const CACHE_DIRS = Array.from(new Set([
+    path.join(DATA_DIR, '.wwebjs_cache'),
+    path.join(__dirname, '.wwebjs_cache'),
+    path.join(process.cwd(), '.wwebjs_cache')
+  ]));
 
   const RESET_SESSION = String(getConfig('RESET_SESSION', 'false')).toLowerCase() === 'true';
   if (RESET_SESSION) {
     try {
       fs.rmSync(SESSION_DIR, { recursive: true, force: true });
       fs.rmSync(LEGACY_AUTH_DIR, { recursive: true, force: true });
+      CACHE_DIRS.forEach(dir => fs.rmSync(dir, { recursive: true, force: true }));
       console.log('🗑️  Cleared WhatsApp auth and cache directories');
     } catch (err) {
       console.warn('⚠️  Failed to reset WhatsApp session:', err.message);
@@ -80,17 +87,47 @@ function initMessaging({ onMessage, onCall, onReady }) {
     }
   };
 
+  console.log(
+    `🧩 whatsapp-web.js ${whatsappWebJsVersion} (WEB_VERSION=${webVersion || 'auto'})`
+  );
+
   if (webVersion) {
     clientOptions.webVersion = webVersion;
-  } else {
-    clientOptions.webVersion = null;
   }
 
   client = new Client(clientOptions);
 
+  client.on('loading_screen', (percent, message) => {
+    console.log(`⏳ WhatsApp loading: ${percent}% - ${message}`);
+  });
+
+  client.on('change_state', waState => {
+    console.log(`📶 WhatsApp state changed: ${waState}`);
+  });
+
+  client.on('authenticated', () => {
+    console.log('🔐 WhatsApp authenticated');
+  });
+
+  client.on('auth_failure', msg => {
+    ready = false;
+    console.error(`❌ WhatsApp auth failure: ${msg}`);
+    state.emit('update');
+  });
+
+  client.on('disconnected', reason => {
+    ready = false;
+    console.warn(`⚠️ WhatsApp disconnected: ${reason}`);
+    state.emit('update');
+  });
+
   client.on('qr', async qr => {
     qrcodeTerminal.generate(qr, { small: true });
-    await qrcode.toFile(QR_PNG_PATH, qr, { type: 'png' });
+    try {
+      await qrcode.toFile(QR_PNG_PATH, qr, { type: 'png' });
+    } catch (err) {
+      console.warn('⚠️ Failed to write QR image:', err.message);
+    }
     ready = false;
     qrId++;
     state.emit('update');
