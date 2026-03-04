@@ -28,6 +28,7 @@ const {
   getTrackingsForPhone
 } = require('./otp');
 const { setStatus } = require('./deliveryLog');
+const { isChannelMessage, isChannelChatError } = require('./messageFilters');
 
 initLogging();
 initServer();
@@ -75,9 +76,15 @@ function shouldHandleOtp(msg) {
 }
 
 async function handleMessage(message) {
-  if (isAutoMessage(message)) return;
+  if (isAutoMessage(message) || isChannelMessage(message)) return;
 
-  const chat = await message.getChat();
+  let chat;
+  try {
+    chat = await message.getChat();
+  } catch (err) {
+    if (isChannelChatError(err)) return;
+    throw err;
+  }
   await mirrorIncomingMessage(message, chat);
   const chatId = chat.id._serialized;
   const msgText = (message.body || '').trim().toLowerCase();
