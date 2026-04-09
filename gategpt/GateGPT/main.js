@@ -106,18 +106,11 @@ async function handleMessage(message) {
     return;
   }
 
-  if (ignoredChats.has(chatId) || chat.id.server === 'g.us') {
-    console.log(`🚫 Ignored chat or group: ${chatId}`);
-    return;
-  }
-
-  if (shouldHandleOtp(message.body)) {
-    await processOtpMessage(message);
-    console.log(`🔐 Stored OTP message from ${chatId}`);
-    return;
-  }
-
   if (message.type === 'ptt') {
+    if (chat?.isMuted) {
+      console.log(`🔇 Muted chat, skipping Whisper transcription: ${chatId}`);
+      return;
+    }
     const media = await message.downloadMedia();
     const binaryData = Buffer.from(media.data, 'base64');
     const filePath = path.resolve(DATA_DIR, 'temp_audio.ogg');
@@ -127,6 +120,17 @@ async function handleMessage(message) {
     sendPushoverNotification('Whisper', transcription);
     message.body = transcription;
     message.type = 'chat';
+  }
+
+  if (ignoredChats.has(chatId) || chat.id.server === 'g.us') {
+    console.log(`🚫 Ignored chat or group: ${chatId}`);
+    return;
+  }
+
+  if (shouldHandleOtp(message.body)) {
+    await processOtpMessage(message);
+    console.log(`🔐 Stored OTP message from ${chatId}`);
+    return;
   }
 
   if (message.type === 'image' && message.hasMedia) {

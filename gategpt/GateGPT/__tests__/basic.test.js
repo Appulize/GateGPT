@@ -8,6 +8,7 @@ process.env.OTP_TRIGGER_KEYWORDS = 'GFS!';
 
 const axios = require('axios');
 const fs = require('fs');
+const path = require('path');
 
 // Mock only the WhatsApp messaging layer
 const handlers = {};
@@ -45,8 +46,20 @@ const messaging = require('../messaging');
 jest.mock('../openaiClient', () => ({
   chat: { completions: { create: jest.fn() } }
 }));
+jest.mock('../notifications', () => ({
+  sendPushoverNotification: jest.fn()
+}));
+jest.mock('../transcription', () => ({
+  transcribeWithWhisper: jest.fn()
+}));
 const openai = require('../openaiClient');
+const { sendPushoverNotification } = require('../notifications');
+const { transcribeWithWhisper } = require('../transcription');
 const { CONFIG_PATH } = require('../config');
+
+const ignoreListPath = path.join(__dirname, '..', 'ignored-chats.json');
+if (fs.existsSync(ignoreListPath)) fs.unlinkSync(ignoreListPath);
+
 require('../main');
 
 function createMessage(body) {
@@ -55,6 +68,19 @@ function createMessage(body) {
     fromMe: false,
     type: 'chat',
     timestamp: Date.now(),
+    getChat: async () => messaging.__chat
+  };
+}
+
+function createVoiceMessage() {
+  return {
+    body: '',
+    fromMe: false,
+    type: 'ptt',
+    timestamp: Date.now(),
+    downloadMedia: async () => ({
+      data: Buffer.from('voice').toString('base64')
+    }),
     getChat: async () => messaging.__chat
   };
 }
@@ -176,5 +202,33 @@ describe('delivery conversation', () => {
       '9999'
     );
     expect(getOtp('ABC123')).toBeUndefined();
+  });
+
+  test('still transcribes ignored voice messages and sends Whisper pushover', async () => {
+    transcribeWithWhisper.mockReset();
+    sendPushoverNotification.mockReset();
+    transcribeWithWhisper.mockResolvedValue('delivery at gate');
+
+    await messaging.__handlers.onMessage(createMessage('!ignore'));
+    await messaging.__handlers.onMessage(createVoiceMessage());
+
+    expect(transcribeWithWhisper).toHaveBeenCalledTimes(1);
+    expect(sendPushoverNotification).toHaveBeenCalledWith(
+      'Whisper',
+      'delivery at gate'
+    );
+  });
+
+  test('does not mirror or transcribe voice messages from muted chats', async () => {
+    transcribeWithWhisper.mockReset();
+    sendPushoverNotification.mockReset();
+    messaging.__chat.isMuted = true;
+
+    await messaging.__handlers.onMessage(createVoiceMessage());
+
+    expect(transcribeWithWhisper).not.toHaveBeenCalled();
+    expect(sendPushoverNotification).not.toHaveBeenCalled();
+
+    messaging.__chat.isMuted = false;
   });
 });
