@@ -80,11 +80,27 @@ jobs:
           const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
           pkg.version = newVer;
           fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+
           const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
-          lock.version = newVer;
-          if (lock.packages && lock.packages['']) {
-            lock.packages[''].version = newVer;
-          }
+          const updateGateGPTVersions = (value) => {
+            if (Array.isArray(value)) {
+              for (const item of value) {
+                updateGateGPTVersions(item);
+              }
+              return;
+            }
+            if (!value || typeof value !== 'object') {
+              return;
+            }
+            if (value.name === 'GateGPT' && typeof value.version === 'string') {
+              value.version = newVer;
+            }
+            for (const child of Object.values(value)) {
+              updateGateGPTVersions(child);
+            }
+          };
+          updateGateGPTVersions(lock);
+
           fs.writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
           NODE
           git ls-files -z | grep -vzE "$EXCLUDE_RE" | xargs -0 perl -pi -e "s/\\Q$OLD_TAG\\E/$NEW_TAG/g; s/\\Q$OLD_VER\\E/$NEW_VER/g"
