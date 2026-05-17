@@ -35,6 +35,7 @@ jest.mock('../messaging', () => {
     sendAuto,
     isAutoMessage: () => false,
     getChatById: async () => chat,
+    getPhoneJidForChatId: jest.fn(async () => null),
     Location,
     getStatus: () => ({ ready: true, qrId: 0 }),
     __handlers: handlers,
@@ -62,13 +63,15 @@ if (fs.existsSync(ignoreListPath)) fs.unlinkSync(ignoreListPath);
 
 require('../main');
 
-function createMessage(body) {
+function createMessage(body, overrides = {}) {
   return {
     body,
     fromMe: false,
     type: 'chat',
     timestamp: Date.now(),
-    getChat: async () => messaging.__chat
+    getChat: async () => messaging.__chat,
+    getContact: async () => ({ id: messaging.__chat.id }),
+    ...overrides
   };
 }
 
@@ -202,6 +205,33 @@ describe('delivery conversation', () => {
       '9999'
     );
     expect(getOtp('ABC123')).toBeUndefined();
+  });
+
+  test('uses resolved phone JID instead of transient LID for ignore list', async () => {
+    messaging.getPhoneJidForChatId.mockResolvedValueOnce('48531858363@c.us');
+    messaging.__chat.id = { _serialized: '11455315341467@lid', server: 'lid' };
+
+    await messaging.__handlers.onMessage(createMessage('!ignore'));
+
+    expect(messaging.sendAuto).toHaveBeenLastCalledWith(
+      messaging.__chat,
+      'Ignoring 48531858363@c.us'
+    );
+
+    messaging.__chat.id = { _serialized: 'test@c.us' };
+    messaging.getPhoneJidForChatId.mockResolvedValue(null);
+  });
+
+  test('ignores status broadcast messages before loading a chat', async () => {
+    const getChat = jest.fn(async () => messaging.__chat);
+
+    await messaging.__handlers.onMessage(createMessage('status update', {
+      from: 'status@broadcast',
+      isStatus: true,
+      getChat
+    }));
+
+    expect(getChat).not.toHaveBeenCalled();
   });
 
   test('still transcribes ignored voice messages and sends Whisper pushover', async () => {

@@ -46,6 +46,12 @@ async function getChatById(id) {
   return client.getChatById(id);
 }
 
+async function getPhoneJidForChatId(id) {
+  if (!client || typeof client.getContactLidAndPhone !== 'function') return null;
+  const [mapping] = await client.getContactLidAndPhone([id]);
+  return mapping?.pn || null;
+}
+
 function initMessaging({ onMessage, onCall, onReady }) {
   const DATA_DIR = getConfig('SESSION_DIR', __dirname);
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -153,6 +159,7 @@ module.exports = {
   sendAuto,
   isAutoMessage,
   getChatById,
+  getPhoneJidForChatId,
   Location,
   getStatus
 };
