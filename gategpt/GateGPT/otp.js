@@ -260,9 +260,9 @@ async function processOtpMessage(message) {
   }
 }
 
-async function resolveOtp(chat) {
+async function resolveOtp(chat, chatId = chat.id._serialized) {
   cleanupExpired();
-  const phone = chat.id._serialized;
+  const phone = chatId;
   const otps = readJson(OTP_FILE, {});
   const allTrackings = Object.keys(otps);
   if (!allTrackings.length) {

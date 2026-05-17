@@ -1,4 +1,5 @@
 const CHANNEL_JID_RE = /@\w*newsletter\b/i;
+const STATUS_BROADCAST_JID = 'status@broadcast';
 
 function extractMessageJids(message) {
   const ids = [
@@ -21,6 +22,13 @@ function isChannelMessage(message) {
   return extractMessageJids(message).some(jid => CHANNEL_JID_RE.test(jid));
 }
 
+function isStatusBroadcastMessage(message) {
+  if (message?.isStatus) return true;
+  return extractMessageJids(message).some(
+    jid => jid.toLowerCase() === STATUS_BROADCAST_JID
+  );
+}
+
 function isChannelChatError(err) {
   const message = String(err?.message || '');
   const stack = String(err?.stack || '');
@@ -34,7 +42,9 @@ function isChannelChatError(err) {
 
 module.exports = {
   CHANNEL_JID_RE,
+  STATUS_BROADCAST_JID,
   extractMessageJids,
   isChannelMessage,
+  isStatusBroadcastMessage,
   isChannelChatError
 };

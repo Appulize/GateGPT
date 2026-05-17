@@ -80,7 +80,9 @@ function renderDeliveries(deliveries, otps) {
   deliveries.forEach(d => {
     const tr = document.createElement('tr');
     const otp = otps[d.tracking]?.otp || '';
-    const phoneRaw = d.chatId ? d.chatId.split('@')[0] : '';
+    const chatRaw = d.chatId || '';
+    const phoneRaw = /^\d+@c\.us$/i.test(chatRaw) ? chatRaw.split('@')[0] : '';
+    const displayChatId = phoneRaw || chatRaw;
     const icon = statusIcons[d.status] || 'question-circle';
     const trackingTd = document.createElement('td');
     trackingTd.textContent = d.tracking || '';
@@ -107,6 +109,8 @@ function renderDeliveries(deliveries, otps) {
       link.rel = 'noopener';
       link.textContent = phoneRaw;
       phoneTd.appendChild(link);
+    } else {
+      phoneTd.textContent = displayChatId;
     }
     tr.appendChild(phoneTd);
 

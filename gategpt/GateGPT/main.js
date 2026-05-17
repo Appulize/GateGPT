@@ -15,7 +15,8 @@ const {
   initMessaging,
   sendAuto,
   isAutoMessage,
-  getChatById
+  getChatById,
+  getPhoneJidForChatId
 } = require('./messaging');
 const { initServer } = require('./server');
 const { sendLocation, openGate } = require('./actions');
@@ -28,7 +29,12 @@ const {
   getTrackingsForPhone
 } = require('./otp');
 const { setStatus } = require('./deliveryLog');
-const { isChannelMessage, isChannelChatError } = require('./messageFilters');
+const { resolveChatPrimaryId, chatRawId, isGroupJid } = require('./chatIdentity');
+const {
+  isChannelMessage,
+  isChannelChatError,
+  isStatusBroadcastMessage
+} = require('./messageFilters');
 
 initLogging();
 initServer();
@@ -76,7 +82,11 @@ function shouldHandleOtp(msg) {
 }
 
 async function handleMessage(message) {
-  if (isAutoMessage(message) || isChannelMessage(message)) return;
+  if (
+    isAutoMessage(message) ||
+    isChannelMessage(message) ||
+    isStatusBroadcastMessage(message)
+  ) return;
 
   let chat;
   try {
@@ -86,7 +96,10 @@ async function handleMessage(message) {
     throw err;
   }
   await mirrorIncomingMessage(message, chat);
-  const chatId = chat.id._serialized;
+  const rawChatId = chatRawId(chat);
+  const chatId = await resolveChatPrimaryId(chat, message, {
+    resolvePhoneJid: getPhoneJidForChatId
+  });
   const msgText = (message.body || '').trim().toLowerCase();
 
   if (msgText === '!ignore') {
@@ -122,7 +135,7 @@ async function handleMessage(message) {
     message.type = 'chat';
   }
 
-  if (ignoredChats.has(chatId) || chat.id.server === 'g.us') {
+  if (ignoredChats.has(chatId) || isGroupJid(rawChatId)) {
     console.log(`🚫 Ignored chat or group: ${chatId}`);
     return;
   }
@@ -155,11 +168,13 @@ async function handleMessage(message) {
       history: [],
       triggered: false,
       sentLocation: false,
-      delivering: false
+      delivering: false,
+      chatId
     });
   }
 
   const convo = conversations.get(chatId);
+  convo.chatId = chatId;
   if (!message.fromMe && convo.sentLocation && !convo.delivering) {
     const trackings = getTrackingsForPhone(chatId);
     trackings.forEach(t => setStatus(t, 'delivering', chatId));
@@ -207,7 +222,7 @@ async function handleMessage(message) {
 }
 
 async function handleAIResponse(chat, convo) {
-  console.log(`💬 Sending GPT reply to ${chat.id._serialized}`);
+  console.log(`💬 Sending GPT reply to ${convo.chatId}`);
   const { reply, actions } = await askChatGPT(convo.messages);
   let trimmed = reply;
 
@@ -222,11 +237,11 @@ async function handleAIResponse(chat, convo) {
         break;
       case 'associate_tracking_number':
         if (action.args?.tracking_number) {
-          associateTracking(chat.id._serialized, action.args.tracking_number);
+          associateTracking(convo.chatId, action.args.tracking_number);
         }
         break;
       case 'resolve_otp':
-        await resolveOtp(chat);
+        await resolveOtp(chat, convo.chatId);
         break;
       case 'send_otp':
         if (action.args?.tracking_number) {
@@ -246,7 +261,7 @@ async function handleAIResponse(chat, convo) {
       convo.triggered = false;
       convo.sentLocation = false;
       convo.delivering = false;
-      console.log(`🕓 Instant mode OFF for ${chat.id._serialized}`);
+      console.log(`🕓 Instant mode OFF for ${convo.chatId}`);
     }, getConfig('AUTO_CLOSE_DELAY_MS', 120000));
   }
 }
