@@ -13,11 +13,35 @@ let client;
 let ready = false;
 let qrId = 0;
 
+/**
+ * Current WhatsApp Web builds no longer populate `_serialized` on message keys,
+ * so reading it yields undefined for every message. Storing that in
+ * `autoMsgIds` used to make `isAutoMessage()` true for everything, and GateGPT
+ * went deaf the moment it sent its first reply. Rebuild the key from the parts
+ * that are still there, in WhatsApp's own `fromMe_remote_id` format.
+ */
+function messageKey(message) {
+  const id = message?.id;
+  if (!id) return null;
+  if (typeof id._serialized === 'string' && id._serialized) return id._serialized;
+  if (id.remote === undefined || id.id === undefined) return null;
+  return `${Boolean(id.fromMe)}_${id.remote}_${id.id}`;
+}
+
+function rememberAutoMessage(msg) {
+  const key = messageKey(msg);
+  if (!key) {
+    console.warn('⚠️ Sent message has no usable id; it may be mistaken for a manual reply');
+    return;
+  }
+  autoMsgIds.add(key);
+  setTimeout(() => autoMsgIds.delete(key), 60 * 60 * 1000);
+}
+
 async function sendAuto(chat, content, options = {}) {
   try {
     const msg = await chat.sendMessage(content, options);
-    autoMsgIds.add(msg?.id?._serialized);
-    setTimeout(() => autoMsgIds.delete(msg?.id?._serialized), 60 * 60 * 1000);
+    rememberAutoMessage(msg);
     return msg;
   } catch (err) {
     const chatId = chat?.id?._serialized ?? chat?.id;
@@ -25,22 +49,18 @@ async function sendAuto(chat, content, options = {}) {
       throw err;
     }
 
-    try {
-      const msg = await client.sendMessage(chatId, content, {
-        ...options,
-        sendSeen: false
-      });
-      autoMsgIds.add(msg?.id?._serialized);
-      setTimeout(() => autoMsgIds.delete(msg?.id?._serialized), 60 * 60 * 1000);
-      return msg;
-    } catch (fallbackErr) {
-      throw fallbackErr;
-    }
+    const msg = await client.sendMessage(chatId, content, {
+      ...options,
+      sendSeen: false
+    });
+    rememberAutoMessage(msg);
+    return msg;
   }
 }
 
 function isAutoMessage(message) {
-  return autoMsgIds.has(message?.id?._serialized);
+  const key = messageKey(message);
+  return key !== null && autoMsgIds.has(key);
 }
 
 /**

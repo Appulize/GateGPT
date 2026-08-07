@@ -16,6 +16,7 @@ jest.mock('whatsapp-web.js', () => {
       super();
       this.pupPage = { evaluate: jest.fn(async fn => fn()) };
       this.getChatById = jest.fn(async id => ({ id: { _serialized: id } }));
+      this.sendMessage = jest.fn();
       clients.push(this);
     }
     initialize() {}
@@ -37,10 +38,17 @@ const wweb = require('whatsapp-web.js');
 const { sendPushoverNotification } = require('../notifications');
 const {
   initMessaging,
+  sendAuto,
+  isAutoMessage,
   getChatById,
   getChatForMessage,
   installMessageIdGuard
 } = require('../messaging');
+
+// WhatsApp Web stopped populating `_serialized`; ids carry the parts instead.
+function waMessage(fromMe, remote, id) {
+  return { id: { fromMe, remote, id } };
+}
 
 function createMsgStore(getMessagesById) {
   return { getMessagesById: jest.fn(getMessagesById) };
@@ -83,6 +91,92 @@ describe('installMessageIdGuard', () => {
     global.window = { Store: { Msg: createMsgStore(async () => ({ messages: [] })) } };
     expect(installMessageIdGuard()).toBe(true);
     expect(installMessageIdGuard()).toBe(false);
+  });
+});
+
+describe('auto-message detection', () => {
+  let client;
+
+  beforeAll(() => {
+    initMessaging({});
+    client = wweb.__clients[wweb.__clients.length - 1];
+  });
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+  });
+
+  test('recognises its own reply when the id has no _serialized', async () => {
+    const sent = waMessage(true, '48531858363@c.us', 'AAA');
+    const chat = {
+      id: { _serialized: '48531858363@c.us' },
+      sendMessage: jest.fn(async () => sent)
+    };
+
+    await sendAuto(chat, 'Are you outside?');
+
+    expect(isAutoMessage(sent)).toBe(true);
+  });
+
+  test('does not swallow the courier\'s next message', async () => {
+    const sent = waMessage(true, '48531858363@c.us', 'BBB');
+    const chat = {
+      id: { _serialized: '48531858363@c.us' },
+      sendMessage: jest.fn(async () => sent)
+    };
+
+    await sendAuto(chat, 'Are you outside?');
+
+    // The reply that used to be dropped because add(undefined)/has(undefined) matched
+    expect(isAutoMessage(waMessage(false, '48531858363@c.us', 'CCC'))).toBe(false);
+  });
+
+  test('never matches a message that has no usable id', async () => {
+    const chat = {
+      id: { _serialized: '48531858363@c.us' },
+      sendMessage: jest.fn(async () => waMessage(true, '48531858363@c.us', 'FFF'))
+    };
+    // Populate the set first: the bug was that a recorded reply matched everything.
+    await sendAuto(chat, 'Are you outside?');
+
+    expect(isAutoMessage({})).toBe(false);
+    expect(isAutoMessage({ id: {} })).toBe(false);
+    expect(isAutoMessage(undefined)).toBe(false);
+  });
+
+  test('still records the reply when it goes out via the client fallback', async () => {
+    const sent = waMessage(true, '48531858363@c.us', 'DDD');
+    client.sendMessage.mockResolvedValueOnce(sent);
+    const chat = {
+      id: { _serialized: '48531858363@c.us' },
+      sendMessage: jest.fn(async () => {
+        throw new Error('chat handle is stale');
+      })
+    };
+
+    await sendAuto(chat, 'Are you outside?');
+
+    expect(client.sendMessage).toHaveBeenCalled();
+    expect(isAutoMessage(sent)).toBe(true);
+  });
+
+  test('forgets the reply after an hour so the set cannot grow forever', async () => {
+    const sent = waMessage(true, '48531858363@c.us', 'EEE');
+    const chat = {
+      id: { _serialized: '48531858363@c.us' },
+      sendMessage: jest.fn(async () => sent)
+    };
+
+    await sendAuto(chat, 'Are you outside?');
+    expect(isAutoMessage(sent)).toBe(true);
+
+    jest.advanceTimersByTime(60 * 60 * 1000);
+    expect(isAutoMessage(sent)).toBe(false);
   });
 });
 
