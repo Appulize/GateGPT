@@ -16,6 +16,7 @@ const {
   sendAuto,
   isAutoMessage,
   getChatById,
+  getChatForMessage,
   getPhoneJidForChatId
 } = require('./messaging');
 const { initServer } = require('./server');
@@ -90,7 +91,7 @@ async function handleMessage(message) {
 
   let chat;
   try {
-    chat = await message.getChat();
+    chat = await getChatForMessage(message);
   } catch (err) {
     if (isChannelChatError(err)) return;
     throw err;
@@ -214,7 +215,13 @@ async function handleMessage(message) {
         return;
       }
       convo.history.push(Date.now());
-      await handleAIResponse(chat, convo);
+      // Nothing awaits this timer, so a rejection here would kill the add-on.
+      try {
+        await handleAIResponse(chat, convo);
+      } catch (err) {
+        console.error(`❌ Failed to reply to ${chatId}:`, err?.stack || err);
+        sendPushoverNotification('GateGPT', `❌ Failed to reply to ${chatId}: ${err?.message || err}`);
+      }
     }, getConfig('RESPONSE_DELAY_MS', 300000));
   }
 

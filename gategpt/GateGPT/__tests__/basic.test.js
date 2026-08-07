@@ -6,9 +6,18 @@ process.env.AUTO_CLOSE_DELAY_MS = '1000';
 process.env.TRIGGER_KEYWORDS = 'q.*post,outside';
 process.env.OTP_TRIGGER_KEYWORDS = 'GFS!';
 
+// config.json is gitignored and holds a real installation's webhooks, so pin
+// the gate URLs here — a test run must never reach anyone's actual gate.
+process.env.GATE_OPEN_URL = 'https://your.server.com/api/webhook/open-gate';
+process.env.GATE_CLOSE_URL = 'https://your.server.com/api/webhook/close-gate';
+
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+
+// A spy without an implementation still calls through, so stub it outright.
+jest.spyOn(axios, 'post').mockResolvedValue({ status: 200 });
+jest.spyOn(axios, 'get').mockRejectedValue(new Error('network disabled in tests'));
 
 // Mock only the WhatsApp messaging layer
 const handlers = {};
@@ -35,6 +44,7 @@ jest.mock('../messaging', () => {
     sendAuto,
     isAutoMessage: () => false,
     getChatById: async () => chat,
+    getChatForMessage: async message => message.getChat(),
     getPhoneJidForChatId: jest.fn(async () => null),
     Location,
     getStatus: () => ({ ready: true, qrId: 0 }),
@@ -101,7 +111,7 @@ describe('delivery conversation', () => {
       await messaging.__handlers.onReady();
     }
 
-    const postSpy = jest.spyOn(axios, 'post');
+    const postSpy = axios.post;
     openai.chat.completions.create.mockResolvedValueOnce({
       choices: [
         {

@@ -5,6 +5,7 @@ const qrcodeTerminal = require('qrcode-terminal');
 const fs = require('fs');
 const path = require('path');
 const { getConfig } = require('./config');
+const { sendPushoverNotification } = require('./notifications');
 const state = require('./state');
 
 const autoMsgIds = new Set();
@@ -42,8 +43,72 @@ function isAutoMessage(message) {
   return autoMsgIds.has(message?.id?._serialized);
 }
 
+/**
+ * Runs inside the WhatsApp Web page, so it must be self-contained: puppeteer
+ * serialises the source and evaluates it in the browser.
+ *
+ * whatsapp-web.js (up to and including 1.34.7) builds its chat model from
+ * `chat.lastReceivedKey._serialized`. Current WhatsApp Web builds leave that
+ * `_serialized` undefined, so the library asks IndexedDB for the message with
+ * id `undefined` and the request rejects with "DataError: Failed to execute
+ * 'get' on 'IDBObjectStore': No key or key range specified" — which makes
+ * every single `getChatById()` call fail. Drop unusable ids before they reach
+ * IndexedDB; `messages` is the only field callers read off the result.
+ */
+function installMessageIdGuard() {
+  const msgStore = window.Store && window.Store.Msg;
+  if (!msgStore || msgStore.__gategptIdGuard) return false;
+
+  const original = msgStore.getMessagesById.bind(msgStore);
+  msgStore.getMessagesById = async ids => {
+    const usable = (ids || []).filter(id => typeof id === 'string' && id);
+    if (!usable.length) return { messages: [] };
+    return original(usable);
+  };
+  msgStore.__gategptIdGuard = true;
+  return true;
+}
+
+/**
+ * Applied lazily instead of once on `ready`, because WhatsApp Web replays
+ * messages before the ready event fires and the page is re-injected whenever
+ * it reloads.
+ */
+async function applyPageWorkarounds() {
+  if (!client?.pupPage) return;
+
+  try {
+    const applied = await client.pupPage.evaluate(installMessageIdGuard);
+    if (applied) console.log('🩹 Applied WhatsApp Web message lookup workaround');
+  } catch (err) {
+    console.warn('⚠️ Failed to apply WhatsApp Web workaround:', err.message);
+  }
+}
+
 async function getChatById(id) {
+  await applyPageWorkarounds();
   return client.getChatById(id);
+}
+
+async function getChatForMessage(message) {
+  await applyPageWorkarounds();
+  return message.getChat();
+}
+
+/**
+ * whatsapp-web.js ignores the promise returned by its listeners, so an
+ * unhandled rejection here takes the whole add-on down. One unprocessable
+ * message must never do that.
+ */
+function guardHandler(event, handler) {
+  return async (...args) => {
+    try {
+      await handler(...args);
+    } catch (err) {
+      console.error(`❌ Failed to handle ${event}:`, err?.stack || err);
+      sendPushoverNotification('GateGPT', `❌ Failed to handle ${event}: ${err?.message || err}`);
+    }
+  };
 }
 
 async function getPhoneJidForChatId(id) {
@@ -144,8 +209,8 @@ function initMessaging({ onMessage, onCall, onReady }) {
     state.emit('update');
     if (onReady) onReady();
   });
-  if (onCall) client.on('incoming_call', onCall);
-  if (onMessage) client.on('message_create', onMessage);
+  if (onCall) client.on('incoming_call', guardHandler('incoming_call', onCall));
+  if (onMessage) client.on('message_create', guardHandler('message_create', onMessage));
 
   client.initialize();
 }
@@ -159,7 +224,9 @@ module.exports = {
   sendAuto,
   isAutoMessage,
   getChatById,
+  getChatForMessage,
   getPhoneJidForChatId,
+  installMessageIdGuard,
   Location,
   getStatus
 };
