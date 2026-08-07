@@ -42,7 +42,7 @@ const {
   isAutoMessage,
   getChatById,
   getChatForMessage,
-  installMessageIdGuard
+  installWhatsAppWebPatches
 } = require('../messaging');
 
 // WhatsApp Web stopped populating `_serialized`; ids carry the parts instead.
@@ -54,9 +54,55 @@ function createMsgStore(getMessagesById) {
   return { getMessagesById: jest.fn(getMessagesById) };
 }
 
-describe('installMessageIdGuard', () => {
+// Mirrors the current WhatsApp Web key class: toString() works, the
+// `_serialized` getter it used to carry is gone.
+function createMsgKeyClass() {
+  class MsgKey {
+    constructor(fromMe, remote, id) {
+      this.fromMe = fromMe;
+      this.remote = remote;
+      this.id = id;
+    }
+    toString() {
+      return `${this.fromMe}_${this.remote}_${this.id}`;
+    }
+  }
+  return MsgKey;
+}
+
+describe('installWhatsAppWebPatches', () => {
   afterEach(() => {
     delete global.window;
+  });
+
+  test('puts back the _serialized getter WhatsApp Web dropped', () => {
+    const MsgKey = createMsgKeyClass();
+    global.window = { Store: { MsgKey, Msg: createMsgStore(async () => ({ messages: [] })) } };
+
+    expect(installWhatsAppWebPatches().keyRestored).toBe(true);
+
+    const key = new MsgKey(true, '48531858363@c.us', 'AAA');
+    expect(key._serialized).toBe('true_48531858363@c.us_AAA');
+  });
+
+  test('leaves a working _serialized alone', () => {
+    const MsgKey = createMsgKeyClass();
+    Object.defineProperty(MsgKey.prototype, '_serialized', {
+      get() { return 'original'; },
+      configurable: true
+    });
+    global.window = { Store: { MsgKey, Msg: createMsgStore(async () => ({ messages: [] })) } };
+
+    expect(installWhatsAppWebPatches().keyRestored).toBe(false);
+    expect(new MsgKey(true, 'x@c.us', 'A')._serialized).toBe('original');
+  });
+
+  test('restores the key only once', () => {
+    const MsgKey = createMsgKeyClass();
+    global.window = { Store: { MsgKey, Msg: createMsgStore(async () => ({ messages: [] })) } };
+
+    expect(installWhatsAppWebPatches().keyRestored).toBe(true);
+    expect(installWhatsAppWebPatches().keyRestored).toBe(false);
   });
 
   test('keeps IndexedDB away from ids WhatsApp Web no longer serialises', async () => {
@@ -64,9 +110,10 @@ describe('installMessageIdGuard', () => {
       throw new Error("DataError: Failed to execute 'get' on 'IDBObjectStore'");
     });
     const original = store.getMessagesById;
+    // No MsgKey: the fallback has to hold on its own.
     global.window = { Store: { Msg: store } };
 
-    expect(installMessageIdGuard()).toBe(true);
+    expect(installWhatsAppWebPatches().lookupGuarded).toBe(true);
 
     // whatsapp-web.js passes `chat.lastReceivedKey._serialized`, now undefined
     await expect(window.Store.Msg.getMessagesById([undefined])).resolves.toEqual({
@@ -79,7 +126,7 @@ describe('installMessageIdGuard', () => {
     const store = createMsgStore(async () => ({ messages: ['msg'] }));
     const original = store.getMessagesById;
     global.window = { Store: { Msg: store } };
-    installMessageIdGuard();
+    installWhatsAppWebPatches();
 
     await expect(window.Store.Msg.getMessagesById(['abc', undefined])).resolves.toEqual({
       messages: ['msg']
@@ -89,8 +136,8 @@ describe('installMessageIdGuard', () => {
 
   test('only wraps the store once', () => {
     global.window = { Store: { Msg: createMsgStore(async () => ({ messages: [] })) } };
-    expect(installMessageIdGuard()).toBe(true);
-    expect(installMessageIdGuard()).toBe(false);
+    expect(installWhatsAppWebPatches().lookupGuarded).toBe(true);
+    expect(installWhatsAppWebPatches().lookupGuarded).toBe(false);
   });
 });
 
@@ -234,13 +281,13 @@ describe('WhatsApp event handlers', () => {
 
   test('chat lookups install the page workaround first', async () => {
     await getChatById('123@c.us');
-    expect(client.pupPage.evaluate).toHaveBeenCalledWith(installMessageIdGuard);
+    expect(client.pupPage.evaluate).toHaveBeenCalledWith(installWhatsAppWebPatches);
     expect(client.getChatById).toHaveBeenCalledWith('123@c.us');
 
     client.pupPage.evaluate.mockClear();
     const getChat = jest.fn(async () => 'chat');
     await expect(getChatForMessage({ getChat })).resolves.toBe('chat');
-    expect(client.pupPage.evaluate).toHaveBeenCalledWith(installMessageIdGuard);
+    expect(client.pupPage.evaluate).toHaveBeenCalledWith(installWhatsAppWebPatches);
     expect(getChat).toHaveBeenCalled();
   });
 
