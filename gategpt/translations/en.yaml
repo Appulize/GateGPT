@@ -20,6 +20,9 @@ configuration:
   RESPONSE_DELAY_MS:
     name: Response delay (ms)
     description: Milliseconds to wait before the bot answers a courier.
+  INSTANT_MODE_DURATION_MS:
+    name: Instant-mode duration (ms)
+    description: How long follow-up courier messages receive immediate replies after the bot responds.
   AUTO_CLOSE_DELAY_MS:
     name: Auto-close delay (ms)
     description: How long the gate stays open before the close webhook fires.

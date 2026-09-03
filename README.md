@@ -14,7 +14,7 @@ Warning! The WhatsApp TOS prohibits the use of bots on personal accounts. GateGP
 - Stores courier OTP codes and associates them with tracking numbers
 - Voice message transcription using OpenAI Whisper
 - Pushover notifications
-- Instant and delayed (5-minute timeout) reply logic
+- Instant and delayed reply logic with a configurable instant-mode duration
 - Rate limiting per contact
 - Ignores group chats
 - Configurable via JSON or environment variables
@@ -139,6 +139,7 @@ Supported config options:
 | `GATE_OPEN_URL`        | URL to trigger gate opening                      |
 | `GATE_CLOSE_URL`       | URL to trigger gate closing                      |
 | `RESPONSE_DELAY_MS`    | Delay before first auto-reply (default: 300000)  |
+| `INSTANT_MODE_DURATION_MS` | How long follow-up replies remain instant (default: 300000) |
 | `AUTO_CLOSE_DELAY_MS`  | Delay before auto-closing gate (default: 120000) |
 | `MAX_MESSAGES_PER_HOUR`| Message rate limiter                             |
 | `IGNORE_FILE`          | File path for ignored chat IDs                   |
@@ -184,4 +185,3 @@ MIT – Free for personal and commercial use. Attribution appreciated.
 ## Author
 
 Maciej Swic – [@maciekish](https://github.com/maciekish)
-

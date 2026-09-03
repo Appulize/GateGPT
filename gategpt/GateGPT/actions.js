@@ -4,6 +4,7 @@ const { sendPushoverNotification } = require('./notifications');
 const { sendAuto, Location } = require('./messaging');
 const { getTrackingsForPhone, removeTrackingForPhone } = require('./otp');
 const { setStatus } = require('./deliveryLog');
+const { enableInstantMode } = require('./instantMode');
 
 async function sendLocation(chat) {
   try {
@@ -42,7 +43,7 @@ async function openGate(chat, convo) {
     await chat.markUnread();
     console.log(`✅ Gate opened`);
 
-    convo.instant = true;
+    enableInstantMode(convo, convo.chatId || chat.id._serialized);
 
     if (convo.gateCloseTimer) clearTimeout(convo.gateCloseTimer);
     convo.gateCloseTimer = setTimeout(async () => {
@@ -63,19 +64,7 @@ async function openGate(chat, convo) {
         console.error('❌ Failed to close gate:', err.message);
         sendPushoverNotification('GateGPT', '❌ Failed to close the gate!');
       }
-      convo.instant = false;
-      convo.triggered = false;
-      convo.sentLocation = false;
-      convo.delivering = false;
       convo.gateCloseTimer = null;
-      console.log(`🕓 Instant mode OFF for ${convo.chatId || chat.id._serialized}`);
-    }, getConfig('AUTO_CLOSE_DELAY_MS', 120000));
-
-    if (convo.instantTimer) clearTimeout(convo.instantTimer);
-    convo.instantTimer = setTimeout(() => {
-      convo.instant = false;
-      convo.triggered = false;
-      console.log(`🕓 Instant mode OFF for ${convo.chatId || chat.id._serialized}`);
     }, getConfig('AUTO_CLOSE_DELAY_MS', 120000));
   } catch (err) {
     console.error('❌ Gate open failed:', err.message);

@@ -31,6 +31,7 @@ const {
 } = require('./otp');
 const { setStatus } = require('./deliveryLog');
 const { resolveChatPrimaryId, chatRawId, isGroupJid } = require('./chatIdentity');
+const { enableInstantMode } = require('./instantMode');
 const {
   isChannelMessage,
   isChannelChatError,
@@ -261,15 +262,7 @@ async function handleAIResponse(chat, convo) {
   if (trimmed && trimmed !== '...') {
     await sendAuto(chat, trimmed);
     await chat.markUnread();
-    convo.instant = true;
-    if (convo.instantTimer) clearTimeout(convo.instantTimer);
-    convo.instantTimer = setTimeout(() => {
-      convo.instant = false;
-      convo.triggered = false;
-      convo.sentLocation = false;
-      convo.delivering = false;
-      console.log(`🕓 Instant mode OFF for ${convo.chatId}`);
-    }, getConfig('AUTO_CLOSE_DELAY_MS', 120000));
+    enableInstantMode(convo);
   }
 }
 
