@@ -10,6 +10,7 @@ const { initLogging } = require('./logging');
 const { getConfig, reloadConfig, CONFIG_PATH } = require('./config');
 const { sendPushoverNotification } = require('./notifications');
 const { transcribeWithWhisper } = require('./transcription');
+const { downloadMessageMedia } = require('./mediaDownload');
 const { askChatGPT } = require('./chatgpt');
 const {
   initMessaging,
@@ -126,7 +127,7 @@ async function handleMessage(message) {
       console.log(`🔇 Muted chat, skipping Whisper transcription: ${chatId}`);
       return;
     }
-    const media = await message.downloadMedia();
+    const media = await downloadMessageMedia(message);
     const binaryData = Buffer.from(media.data, 'base64');
     const filePath = path.resolve(DATA_DIR, 'temp_audio.ogg');
     fs.writeFileSync(filePath, binaryData);
