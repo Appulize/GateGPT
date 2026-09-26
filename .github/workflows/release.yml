@@ -65,7 +65,6 @@ jobs:
           OLD_VER: ${{ steps.prep.outputs.old_ver }}
           NEW_TAG: ${{ steps.prep.outputs.new_tag }}
           NEW_VER: ${{ steps.prep.outputs.new_ver }}
-          EXCLUDE_RE: '\\.git|vendor|node_modules|gategpt/GateGPT/node_modules|package\\.json|package-lock\\.json|yarn\\.lock|pnpm-lock\\.yaml'
         run: |
           echo "🔄 Updating version strings…"
           node - <<'NODE'
@@ -82,28 +81,30 @@ jobs:
           fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 
           const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
-          const updateGateGPTVersions = (value) => {
-            if (Array.isArray(value)) {
-              for (const item of value) {
-                updateGateGPTVersions(item);
-              }
-              return;
-            }
-            if (!value || typeof value !== 'object') {
-              return;
-            }
-            if (value.name === 'GateGPT' && typeof value.version === 'string') {
-              value.version = newVer;
-            }
-            for (const child of Object.values(value)) {
-              updateGateGPTVersions(child);
-            }
-          };
-          updateGateGPTVersions(lock);
+          lock.version = newVer;
+          if (lock.packages?.['']) lock.packages[''].version = newVer;
 
           fs.writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
+
+          const addonPath = path.join('gategpt', 'config.json');
+          const addon = JSON.parse(fs.readFileSync(addonPath, 'utf8'));
+          addon.version = newVer;
+          fs.writeFileSync(addonPath, `${JSON.stringify(addon, null, 2)}\n`);
+
+          const bakePath = path.join('gategpt', 'docker-bake.hcl');
+          const bake = fs.readFileSync(bakePath, 'utf8').replace(
+            /(variable "GATEGPT_VERSION" \{ default = ")[^"]+(" \})/,
+            `$1${newVer}$2`
+          );
+          fs.writeFileSync(bakePath, bake);
+
+          const mainPath = path.join('gategpt', 'GateGPT', 'main.js');
+          const main = fs.readFileSync(mainPath, 'utf8').replace(
+            /(This is GateGPT v)[0-9]+\.[0-9]+\.[0-9]+/,
+            `$1${newVer}`
+          );
+          fs.writeFileSync(mainPath, main);
           NODE
-          git ls-files -z | grep -vzE "$EXCLUDE_RE" | xargs -0 perl -pi -e "s/\\Q$OLD_TAG\\E/$NEW_TAG/g; s/\\Q$OLD_VER\\E/$NEW_VER/g"
           git add -u
           git commit -m "🔖 Bump version to $NEW_TAG"
           git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
