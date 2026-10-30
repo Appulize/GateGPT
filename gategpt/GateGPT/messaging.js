@@ -83,7 +83,9 @@ function isAutoMessage(message) {
 function installWhatsAppWebPatches() {
   const applied = { keyRestored: false, lookupGuarded: false };
 
-  const keyProto = window.Store && window.Store.MsgKey && window.Store.MsgKey.prototype;
+  // whatsapp-web.js 1.34.7 reads the page's module registry instead of Store.
+  const keyClass = window.Store?.MsgKey || window.require?.('WAWebMsgKey');
+  const keyProto = keyClass?.prototype;
   if (
     keyProto &&
     typeof keyProto.toString === 'function' &&
@@ -98,7 +100,7 @@ function installWhatsAppWebPatches() {
     applied.keyRestored = true;
   }
 
-  const msgStore = window.Store && window.Store.Msg;
+  const msgStore = window.Store?.Msg || window.require?.('WAWebCollections')?.Msg;
   if (msgStore && !msgStore.__gategptIdGuard) {
     const original = msgStore.getMessagesById.bind(msgStore);
     msgStore.getMessagesById = async ids => {

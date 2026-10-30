@@ -105,6 +105,23 @@ describe('installWhatsAppWebPatches', () => {
     expect(installWhatsAppWebPatches().keyRestored).toBe(false);
   });
 
+  test('patches the current whatsapp-web.js module registry without Store', async () => {
+    const MsgKey = createMsgKeyClass();
+    const Msg = createMsgStore(async () => ({ messages: ['msg'] }));
+    const original = Msg.getMessagesById;
+    global.window = {
+      require: name => ({ WAWebMsgKey: MsgKey, WAWebCollections: { Msg } })[name]
+    };
+
+    expect(installWhatsAppWebPatches()).toEqual({
+      keyRestored: true,
+      lookupGuarded: true
+    });
+    expect(new MsgKey(false, 'x@c.us', 'A')._serialized).toBe('false_x@c.us_A');
+    await expect(Msg.getMessagesById([undefined, 'abc'])).resolves.toEqual({ messages: ['msg'] });
+    expect(original).toHaveBeenCalledWith(['abc']);
+  });
+
   test('keeps IndexedDB away from ids WhatsApp Web no longer serialises', async () => {
     const store = createMsgStore(async () => {
       throw new Error("DataError: Failed to execute 'get' on 'IDBObjectStore'");
