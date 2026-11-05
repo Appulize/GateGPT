@@ -37,3 +37,7 @@ For dependency upgrades, also run a fresh `npm ci`, check `npm outdated` and
 `npm audit`, and exercise incoming synthetic OTP extraction, real image resizing,
 and synthetic Whisper upload. Do not apply audit-suggested downgrades or force
 incompatible transitive major versions merely to make the advisory count smaller.
+
+When upgrading GitHub Actions, check every configured input against the new action
+manifest and migration docs. Bake v7 uses `source: ./gategpt`, not `workdir`; this
+must preserve the context directory so `gategpt/.dockerignore` stays effective.
