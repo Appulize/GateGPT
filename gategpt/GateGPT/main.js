@@ -1,5 +1,5 @@
 /*********************************************************************
- * This is GateGPT v1.5.8 first created by Maciej Swic on 2025-04-25.
+ * This is GateGPT v1.5.9 first created by Maciej Swic on 2025-04-25.
  * Please see the LICENSE file.
 *********************************************************************/
 
@@ -255,13 +255,7 @@ async function handleMessage(message) {
 
 async function handleAIResponse(chat, convo) {
   console.log(`💬 Sending GPT reply to ${convo.chatId}`);
-  const { reply, actions } = await askChatGPT(convo.messages);
-  let trimmed = reply;
-  if (!isGateConfigured() && trimmed === 'open_gate') {
-    trimmed = "Sorry, I can't open the gate.";
-  }
-
-  for (const action of actions) {
+  const { reply } = await askChatGPT(convo.messages, async action => {
     switch (action.name) {
       case 'send_location':
         await sendLocation(chat);
@@ -284,6 +278,11 @@ async function handleAIResponse(chat, convo) {
         }
         break;
     }
+    return { handled: true, note: 'The handler sends its own messages and reports failures itself. Do not claim success or repeat its messages.' };
+  });
+  let trimmed = reply;
+  if (!isGateConfigured() && trimmed === 'open_gate') {
+    trimmed = "Sorry, I can't open the gate.";
   }
 
   if (trimmed && trimmed !== '...') {

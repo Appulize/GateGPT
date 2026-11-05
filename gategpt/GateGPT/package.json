@@ -1,12 +1,14 @@
 {
   "name": "GateGPT",
-  "version": "1.5.8",
+  "version": "1.5.9",
   "description": "GateGPT uses whatsapp-web.js, ChatGPT and Home Assistant webhooks to automatically receive deliveries announced over WhatsApp.",
   "main": "main.js",
   "scripts": {
     "start": "node .",
     "test": "jest",
-    "postinstall": "node scripts/patchWhatsAppMedia.js"
+    "postinstall": "node scripts/patchWhatsAppMedia.js",
+    "test:live": "node --test test/live-regression.cjs",
+    "test:release": "npm test -- --runInBand --forceExit && npm run test:live"
   },
   "keywords": [],
   "author": "",

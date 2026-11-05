@@ -149,3 +149,8 @@ gategpt/GateGPT/qr.png
 gategpt/GateGPT/otps.json
 gategpt/GateGPT/tracking-map.json
 gategpt/GateGPT/deliveries.json
+
+# Private, user-supplied photo regression fixtures and local test reports
+gategpt/GateGPT/test/live-fixtures/*
+!gategpt/GateGPT/test/live-fixtures/README.md
+gategpt/GateGPT/test/live-report.json

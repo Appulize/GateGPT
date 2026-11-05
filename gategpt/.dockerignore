@@ -1,0 +1,19 @@
+# This is the effective Docker build context (docker-bake.hcl context = '.').
+**/.env
+**/.env.*
+**/node_modules
+**/.git
+GateGPT/config.json
+GateGPT/test
+GateGPT/__tests__
+GateGPT/whatsapp-auth
+GateGPT/.wwebjs_auth
+GateGPT/.wwebjs_cache
+GateGPT/ignored-chats.json
+GateGPT/otps.json
+GateGPT/tracking-map.json
+GateGPT/deliveries.json
+GateGPT/qr.png
+**/*.log
+**/logs
+**/temp_audio.ogg

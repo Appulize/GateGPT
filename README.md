@@ -185,3 +185,13 @@ MIT – Free for personal and commercial use. Attribution appreciated.
 ## Author
 
 Maciej Swic – [@maciekish](https://github.com/maciekish)
+
+## AI regression checks and releases
+
+GPT-5.4+ models use the Responses API for reasoning with tools. Tool-only turns
+are continued with handler results to obtain the courier-facing answer. Address
+authority belongs to each installation's system prompt, never parcel labels.
+
+Every release requires the local unit and real-photo API preflight in
+[RELEASING.md](RELEASING.md). Credentials and original photos stay local and are
+excluded from Git and Docker builds.
