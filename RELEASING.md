@@ -2,6 +2,8 @@
 
 Before any GateGPT release or image rebuild, including GitHub workflow dispatch:
 
+Use Node 24 LTS for the preflight (the container runtime); the SDK requires Node 22+.
+
 1. Run `npm run test:release --prefix gategpt/GateGPT` on the exact release tree.
    This runs the unit suite and the real Terra/medium Responses API regression
    suite. Missing credentials/photos, API errors, incorrect model/effort, missing
@@ -16,7 +18,8 @@ Before any GateGPT release or image rebuild, including GitHub workflow dispatch:
    the prompt fixture, and test reports are ignored and absent from staged files.
 4. Commit on the default branch and publish via the existing Release workflow or
    `gategpt/release.sh`. Both release routes are subject to this preflight.
-5. Wait for the multi-architecture image build. Deploy the versioned image, verify
+5. Wait for the multi-architecture image build. Before deployment, smoke-test the
+   published candidate image with an isolated Chromium launch (no auth/session mount). Deploy the versioned image, verify
    the published digest, and confirm WhatsApp readiness plus the effective model,
    reasoning effort, prompt hash, and behavior in a send-disabled test.
 
@@ -29,3 +32,8 @@ fixtures are explicitly configured.
 Fixtures and their expected outcomes are documented in
 `gategpt/GateGPT/test/live-fixtures/README.md`. The API key belongs only in the
 ignored local `.env` (0600), never in tracked configuration or logs.
+
+For dependency upgrades, also run a fresh `npm ci`, check `npm outdated` and
+`npm audit`, and exercise incoming synthetic OTP extraction, real image resizing,
+and synthetic Whisper upload. Do not apply audit-suggested downgrades or force
+incompatible transitive major versions merely to make the advisory count smaller.

@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const openai = require('./openaiClient');
+const { createModelResponse } = require('./modelResponse');
 const { getConfig } = require('./config');
 const { getModelRequestOptions } = require('./modelOptions');
 const { setStatus } = require('./deliveryLog');
@@ -243,9 +243,7 @@ async function processOtpMessage(message) {
     ...getModelRequestOptions(model)
   };
 
-  const response = await openai.chat.completions.create(request);
-
-  const msg = response.choices[0].message;
+  const { message: msg } = await createModelResponse(request);
   if (Array.isArray(msg.tool_calls)) {
     for (const call of msg.tool_calls) {
       if (call.function?.name === 'save_tracking_otp') {

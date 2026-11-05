@@ -1,6 +1,7 @@
 // Real API acceptance tests. No WhatsApp client/actions are imported or executed.
 // Missing credentials or private fixtures FAIL; they must never silently skip.
-const { test } = require('node:test');
+const { test, after } = require('node:test');
+const os = require('node:os');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -13,7 +14,10 @@ const photo = name => fs.readFileSync(path.join(fixtureDir, name)).toString('bas
 const label = photo('old-label.jpg');
 const entrance = photo('wrong-entrance.jpg');
 const heldPackage = photo('courier-test-original.jpg');
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gategpt-live-test-'));
+after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
 Object.assign(process.env, {
+  SESSION_DIR: dataDir,
   CHATGPT_MODEL: 'gpt-5.6-terra', CHATGPT_EFFORT: 'medium', CHATGPT_VERBOSITY: 'low',
   CHATGPT_SYSTEM_PROMPT: prompt, GATE_OPEN_URL: '', GATE_CLOSE_URL: ''
 });
@@ -91,3 +95,17 @@ for (const scenario of cases) {
     fs.writeFileSync(path.join(__dirname, 'live-report.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
   });
 }
+
+test('incoming synthetic tracking and OTP are extracted with Terra/medium', { timeout: 90000 }, async () => {
+  const { processOtpMessage, getOtp } = require('../otp');
+  await processOtpMessage({ body: 'طلبك TEST123456 في طريقه. يرجى إظهار رمز التحقق 012345 لاستلام طلبك.' });
+  assert.equal(getOtp('TEST123456'), '012345');
+});
+
+test('Whisper SDK upload still transcribes a synthetic delivery clip', { timeout: 90000 }, async () => {
+  const transcribe = openai.audio.transcriptions.create.bind(openai.audio.transcriptions);
+  openai.audio.transcriptions.create = request => transcribe(request, { timeout: 60000, maxRetries: 0 });
+  const { transcribeWithWhisper } = require('../transcription');
+  const text = await transcribeWithWhisper(path.join(fixtureDir, 'synthetic-delivery.wav'));
+  assert.match(text.toLowerCase(), /delivery/);
+});
