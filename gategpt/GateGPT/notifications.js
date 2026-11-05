@@ -27,7 +27,8 @@ async function sendPushoverNotification(title, message, opts = {}) {
 
       await axios.post(url, form, {
         headers: form.getHeaders(),
-        maxBodyLength: Infinity
+        maxBodyLength: Infinity,
+        timeout: 15000
       });
     } else {
       // simple JSON branch (no file)
@@ -37,14 +38,15 @@ async function sendPushoverNotification(title, message, opts = {}) {
       params.append('title', title);
       params.append('message', message);
 
-      await axios.post(url, params); // axios sets the correct header automatically
+      await axios.post(url, params, { timeout: 15000 }); // axios sets the correct header automatically
     }
 
     console.log(`${title}: ${message}`);
+    return true;
   } catch (err) {
     const code = err.response?.status ?? 'N/A';
-    const body = err.response?.data ?? err.message;
-    console.error(`❌ Pushover failed (HTTP ${code}):`, body);
+    console.error(`❌ Pushover failed (HTTP ${code}):`, err.code || 'request failed');
+    return false;
   }
 }
 

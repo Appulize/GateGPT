@@ -1,5 +1,5 @@
 /*********************************************************************
- * This is GateGPT v1.5.14 first created by Maciej Swic on 2025-04-25.
+ * This is GateGPT v1.5.15 first created by Maciej Swic on 2025-04-25.
  * Please see the LICENSE file.
 *********************************************************************/
 
@@ -294,7 +294,6 @@ async function handleAIResponse(chat, convo) {
 
 loadIgnoreList();
 initMessaging({
-  onReady: () => sendPushoverNotification('GateGPT', '✅ GateGPT is ready!'),
   onCall: async call => {
     sendPushoverNotification('GateGPT', `📞 Rejecting call from ${call.peerJid}`);
     const chat = await getChatById(call.peerJid);

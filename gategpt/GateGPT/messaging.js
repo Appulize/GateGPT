@@ -7,6 +7,7 @@ const path = require('path');
 const { getConfig } = require('./config');
 const { sendPushoverNotification } = require('./notifications');
 const state = require('./state');
+const { createConnectionRecovery, withTimeout } = require('./connectionRecovery');
 
 // Always load the current app, not a stale service-worker response. Advertise
 // the installed Chromium version instead of the library's hardcoded Chrome 101.
@@ -24,6 +25,7 @@ let client;
 let ready = false;
 let qrId = 0;
 let startupError = null;
+let recovery;
 
 /**
  * Current WhatsApp Web builds no longer populate `_serialized` on message keys,
@@ -204,7 +206,6 @@ function initMessaging({ onMessage, onCall, onReady }) {
 
   const webVersion = String(getConfig('WEB_VERSION', '')).trim();
   const clientOptions = {
-    authStrategy: new BrowserLocalAuth({ dataPath: SESSION_DIR }),
     userAgent: false,
     webVersionCache: { type: webVersion ? 'local' : 'none' },
     puppeteer: {
@@ -227,59 +228,180 @@ function initMessaging({ onMessage, onCall, onReady }) {
     clientOptions.webVersion = webVersion;
   }
 
-  client = new Client(clientOptions);
+  recovery?.stop();
+  let current;
+  let notifiedReady = false;
+  const seenMessages = new Map();
+  let replayFloor = Math.floor(Date.now() / 1000) - 60;
 
-  client.on('loading_screen', (percent, message) => {
-    console.log(`⏳ WhatsApp loading: ${percent}% - ${message}`);
-  });
+  function active(record) {
+    return current === record && !record.retiring;
+  }
 
-  client.on('change_state', waState => {
-    console.log(`📶 WhatsApp state changed: ${waState}`);
-  });
-
-  client.on('authenticated', () => {
-    console.log('🔐 WhatsApp authenticated');
-  });
-
-  client.on('auth_failure', msg => {
+  function offline(record, reason, qr = false) {
+    if (!active(record)) return;
     ready = false;
-    console.error(`❌ WhatsApp auth failure: ${msg}`);
+    recovery.offline(reason, qr);
     state.emit('update');
-  });
+  }
 
-  client.on('disconnected', reason => {
+  function launch() {
     ready = false;
-    console.warn(`⚠️ WhatsApp disconnected: ${reason}`);
-    state.emit('update');
-  });
+    qrId = 0;
+    startupError = null;
+    const next = new Client({
+      ...clientOptions,
+      authStrategy: new BrowserLocalAuth({ dataPath: SESSION_DIR })
+    });
+    const record = { client: next, hadReady: false, retiring: false, settled: false };
+    current = record;
+    client = next;
 
-  client.on('qr', async qr => {
-    qrcodeTerminal.generate(qr, { small: true });
+    next.on('loading_screen', (percent, message) => {
+      if (active(record)) console.log(`⏳ WhatsApp loading: ${percent}% - ${message}`);
+    });
+    next.on('change_state', waState => {
+      if (!active(record)) return;
+      console.log(`📶 WhatsApp state changed: ${waState}`);
+      if (waState !== 'CONNECTED') offline(record, 'WhatsApp connection interrupted');
+    });
+    next.on('authenticated', () => {
+      if (active(record)) console.log('🔐 WhatsApp authenticated');
+    });
+    next.on('auth_failure', () => {
+      offline(record, 'WhatsApp authentication failed');
+    });
+    next.on('disconnected', () => {
+      record.hadReady = false;
+      offline(record, 'WhatsApp disconnected');
+    });
+    next.on('qr', async qr => {
+      if (!active(record)) return;
+      record.hadReady = false;
+      startupError = null;
+      qrcodeTerminal.generate(qr, { small: true });
+      try {
+        await qrcode.toFile(QR_PNG_PATH, qr, { type: 'png' });
+      } catch (err) {
+        console.warn('⚠️ Failed to write QR image:', err.message);
+      }
+      if (!active(record)) return;
+      qrId++;
+      offline(record, 'WhatsApp needs a QR login', true);
+    });
+    next.on('ready', () => {
+      if (!active(record)) return;
+      record.hadReady = true;
+      ready = true;
+      qrId = 0;
+      startupError = null;
+      recovery.online();
+      console.log('✅ WhatsApp ready');
+      state.emit('update');
+      if (!notifiedReady) {
+        notifiedReady = true;
+        if (onReady) guardHandler('ready', onReady)();
+      }
+    });
+    if (onCall) next.on('incoming_call', guardHandler('incoming_call', (...args) => {
+      if (active(record)) return onCall(...args);
+    }));
+    if (onMessage) next.on('message_create', guardHandler('message_create', message => {
+      if (!active(record)) return;
+      // Retain IDs through long outages, not just an hour of wall-clock time.
+      // If the bounded history fills, move the acceptance floor with eviction.
+      const timestamp = Number(message.timestamp);
+      if (Number.isFinite(timestamp) && timestamp < replayFloor) return;
+      const key = messageKey(message);
+      if (key && seenMessages.has(key)) return;
+      if (key) seenMessages.set(key, Number.isFinite(timestamp) ? timestamp : replayFloor);
+      if (seenMessages.size > 10000) {
+        const oldest = Math.min(...seenMessages.values());
+        replayFloor = Math.max(replayFloor, oldest + 1);
+        for (const [id, time] of seenMessages) {
+          if (time < replayFloor) seenMessages.delete(id);
+        }
+      }
+      return onMessage(message);
+    }));
+    record.initialization = Promise.resolve().then(() => next.initialize()).catch(err => {
+      if (!active(record)) return;
+      startupError = 'WhatsApp failed to start. Automatic recovery is in progress; check the logs for details.';
+      console.error('❌ WhatsApp startup failed:', err?.stack || err);
+      offline(record, 'WhatsApp failed to start');
+    }).finally(() => { record.settled = true; });
+    state.emit('update');
+  }
+
+  async function restart() {
+    const old = current;
+    old.retiring = true;
+    ready = false;
+    qrId = 0;
+    state.emit('update');
+    const browser = old.client.pupBrowser;
+    // Never run two initializers against the same LocalAuth profile.
+    if (!browser && !old.settled) throw new Error('Waiting for the previous browser launch to finish');
+    const process = browser?.process?.();
     try {
-      await qrcode.toFile(QR_PNG_PATH, qr, { type: 'png' });
+      await withTimeout(() => old.client.destroy());
     } catch (err) {
-      console.warn('⚠️ Failed to write QR image:', err.message);
+      if (!process || process.exitCode !== null || process.signalCode !== null) throw err;
+      process.kill('SIGKILL'); // only this client's owned Chromium process
     }
-    ready = false;
-    qrId++;
-    state.emit('update');
-  });
+    if (process && process.exitCode === null && process.signalCode === null) {
+      const waitForExit = async () => {
+        let listener;
+        try {
+          await withTimeout(() => new Promise(resolve => {
+            listener = resolve;
+            process.once('exit', listener);
+          }));
+        } finally {
+          if (listener) process.removeListener('exit', listener);
+        }
+      };
+      try {
+        await waitForExit();
+      } catch {
+        process.kill('SIGKILL');
+        if (process.exitCode === null && process.signalCode === null) {
+          await waitForExit();
+        }
+      }
+    }
+    if (browser?.isConnected?.()) throw new Error('Previous browser is still connected');
+    await withTimeout(() => old.initialization);
+    old.client.removeAllListeners();
+    launch();
+  }
 
-  client.once('ready', () => {
-    ready = true;
-    state.emit('update');
-    if (onReady) onReady();
+  recovery = createConnectionRecovery({
+    file: path.join(DATA_DIR, 'whatsapp-recovery.json'),
+    restart,
+    notify: sendPushoverNotification,
+    probe: async () => {
+      const record = current;
+      if (!record || record.retiring || !record.hadReady) return false;
+      let connected;
+      try {
+        connected = await withTimeout(() => record.client.getState()) === 'CONNECTED';
+      } catch (err) {
+        if (active(record)) {
+          ready = false;
+          state.emit('update');
+        }
+        throw err;
+      }
+      if (!active(record) || !record.hadReady) return false;
+      if (connected !== ready) {
+        ready = connected;
+        state.emit('update');
+      }
+      return connected;
+    }
   });
-  if (onCall) client.on('incoming_call', guardHandler('incoming_call', onCall));
-  if (onMessage) client.on('message_create', guardHandler('message_create', onMessage));
-
-  startupError = null;
-  Promise.resolve(client.initialize()).catch(err => {
-    ready = false;
-    startupError = 'WhatsApp failed to start. Check the GateGPT logs, then restart the add-on.';
-    console.error('❌ WhatsApp startup failed:', err?.stack || err);
-    state.emit('update');
-  });
+  launch();
 }
 
 function getStatus() {

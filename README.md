@@ -195,3 +195,26 @@ authority belongs to each installation's system prompt, never parcel labels.
 Every release requires the local unit and real-photo API preflight in
 [RELEASING.md](RELEASING.md). Credentials and original photos stay local and are
 excluded from Git and Docker builds.
+
+### WhatsApp connection recovery
+
+GateGPT checks WhatsApp every 30 seconds, including a bounded browser-health
+probe. Startup failures, authentication failures and disconnections first get a
+one-minute grace period. It then recreates the WhatsApp client with the saved
+login at roughly 1, 3 and 7 minutes. The previous initializer and Chromium process
+must finish before a replacement can use the profile; recovery never calls
+logout or resets the saved login. A genuinely revoked session still needs a QR scan.
+
+After about 10 minutes without recovery, the existing Pushover configuration
+receives one outage alert with next steps. Failed notification requests are
+retried no more than once per 15 minutes. Outage state and notification delivery
+are persisted in `SESSION_DIR/whatsapp-recovery.json`, so add-on restarts do not
+reset the grace period or repeat a delivered alert. There are no periodic outage
+reminders. Browser recovery continues every 15 minutes, except when a QR scan is
+needed after the initial three attempts; in that case the Login tab stays available.
+
+A connection must remain healthy for five minutes before the incident is cleared.
+Only an outage that was alerted gets a recovery notification. Routine startups
+and short, self-healing interruptions are silent. The monitor runs inside GateGPT:
+it cannot notify while the entire add-on or HA Pi is stopped, and delivery waits
+for Pushover/network connectivity to return.

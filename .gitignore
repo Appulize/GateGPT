@@ -157,3 +157,5 @@ gategpt/GateGPT/test/live-report.json
 
 # Legacy downloaded snapshot directory; never bundled or used by default.
 gategpt/GateGPT/whatsapp-web-cache/
+
+gategpt/GateGPT/whatsapp-recovery.json*

@@ -21,6 +21,8 @@ jest.mock('whatsapp-web.js', () => {
       clients.push(this);
     }
     initialize() { return Promise.resolve(); }
+    destroy() { return Promise.resolve(); }
+    getState() { return Promise.resolve('CONNECTED'); }
   }
 
   return {
@@ -349,11 +351,104 @@ describe('WhatsApp startup', () => {
     const initSpy = jest.spyOn(wweb.Client.prototype, 'initialize')
       .mockRejectedValueOnce(new Error('Socket unavailable'));
     initMessaging({});
-    await Promise.resolve();
+    await new Promise(resolve => setImmediate(resolve));
     expect(getStatus()).toMatchObject({ ready: false, startupError: expect.stringContaining('failed to start') });
     expect(errorSpy).toHaveBeenCalled();
     initSpy.mockRestore();
     errorSpy.mockRestore();
+  });
+});
+
+describe('WhatsApp automatic recovery integration', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+    fs.rmSync(path.join(sessionDir, 'whatsapp-recovery.json'), { force: true });
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  test('destroys the old client before retry, ignores stale events, and keeps auth', async () => {
+    const onMessage = jest.fn();
+    initMessaging({ onMessage });
+    const old = wweb.__clients.at(-1);
+    const destroy = jest.spyOn(old, 'destroy');
+    old.emit('ready');
+    const message = { ...waMessage(false, 'test@c.us', 'replayed'), timestamp: Date.now() / 1000 };
+    old.emit('message_create', message);
+    const authDir = path.join(sessionDir, 'whatsapp-auth');
+    fs.writeFileSync(path.join(authDir, 'preserve-me'), 'session sentinel');
+    await jest.advanceTimersByTimeAsync(2 * 60000);
+    old.emit('disconnected', 'NETWORK');
+    await jest.advanceTimersByTimeAsync(61 * 60000);
+    const replacement = wweb.__clients.at(-1);
+    expect(replacement).not.toBe(old);
+    expect(destroy).toHaveBeenCalledTimes(1);
+    expect(fs.readFileSync(path.join(authDir, 'preserve-me'), 'utf8')).toBe('session sentinel');
+    expect(replacement.options.authStrategy).not.toBe(old.options.authStrategy);
+    old.emit('ready');
+    expect(getStatus().ready).toBe(false);
+    replacement.emit('ready');
+    replacement.emit('message_create', message);
+    expect(onMessage).toHaveBeenCalledTimes(1);
+    replacement.emit('message_create', { ...message, ...waMessage(false, 'test@c.us', 'unseen-backlog') });
+    expect(onMessage).toHaveBeenCalledTimes(2);
+    expect(getStatus()).toMatchObject({ ready: true, startupError: null, qrId: 0 });
+    await jest.advanceTimersByTimeAsync(6 * 60000);
+    expect(sendPushoverNotification.mock.calls.every(([title]) => title.includes('WhatsApp'))).toBe(true);
+  });
+
+  test('a stuck initializer never creates overlapping clients and still raises an alert', async () => {
+    jest.spyOn(wweb.Client.prototype, 'initialize').mockImplementation(() => new Promise(() => {}));
+    initMessaging({});
+    const count = wweb.__clients.length;
+    await jest.advanceTimersByTimeAsync(11 * 60000);
+    expect(wweb.__clients).toHaveLength(count);
+    expect(sendPushoverNotification).toHaveBeenCalledWith(
+      'GateGPT — WhatsApp offline', expect.stringContaining('recovery attempts')
+    );
+  });
+
+  test('health-probe failure marks the UI offline, then rebuilds the client', async () => {
+    initMessaging({});
+    const old = wweb.__clients.at(-1);
+    jest.spyOn(old, 'getState').mockRejectedValue(new Error('page crashed'));
+    old.emit('ready');
+    await jest.advanceTimersByTimeAsync(30000);
+    expect(getStatus().ready).toBe(false);
+    await jest.advanceTimersByTimeAsync(60000);
+    expect(wweb.__clients.at(-1)).not.toBe(old);
+  });
+
+  test('kills only its disconnected-but-live browser before launching a replacement', async () => {
+    initMessaging({});
+    const old = wweb.__clients.at(-1);
+    const { EventEmitter } = require('events');
+    const child = new EventEmitter();
+    child.exitCode = null;
+    child.signalCode = null;
+    child.kill = jest.fn(() => {
+      child.signalCode = 'SIGKILL';
+      child.emit('exit');
+    });
+    old.pupBrowser = { process: () => child, isConnected: () => false };
+    old.emit('ready');
+    old.emit('disconnected', 'NETWORK');
+    await jest.advanceTimersByTimeAsync(76000);
+    expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+    expect(wweb.__clients.at(-1)).not.toBe(old);
+  });
+
+  test('a healthy socket alone cannot hide authentication stuck before ready', async () => {
+    initMessaging({});
+    const old = wweb.__clients.at(-1);
+    old.emit('authenticated');
+    await jest.advanceTimersByTimeAsync(60000);
+    expect(getStatus().ready).toBe(false);
+    expect(wweb.__clients.at(-1)).not.toBe(old);
   });
 });
 
