@@ -155,5 +155,5 @@ gategpt/GateGPT/test/live-fixtures/*
 !gategpt/GateGPT/test/live-fixtures/README.md
 gategpt/GateGPT/test/live-report.json
 
-# Verified public WhatsApp Web snapshot, downloaded by postinstall.
+# Legacy downloaded snapshot directory; never bundled or used by default.
 gategpt/GateGPT/whatsapp-web-cache/

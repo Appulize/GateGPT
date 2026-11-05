@@ -42,10 +42,11 @@ When upgrading GitHub Actions, check every configured input against the new acti
 manifest and migration docs. Bake v7 uses `source: ./gategpt`, not `workdir`; this
 must preserve the context directory so `gategpt/.dockerignore` stays effective.
 
-WhatsApp Web startup uses the checksum-verified app snapshot declared in
-`gategpt/GateGPT/whatsappWebVersion.js`, installed by npm postinstall and copied
-into the image. Do not select snapshots whose root is `whatsapp-web-logged-out`:
-they are landing pages without the Socket module. Before changing the pin,
-verify QR generation in a fresh ARM64 browser and authenticated startup using
-the saved profile. Keep QR login in the HA add-on, not a separate helper service.
-A nonempty `WEB_VERSION` remains an explicit operator override of the default pin.
+WhatsApp Web defaults to the current live app (`webVersionCache: none`), without
+bundled HTML or a remote version registry. The browser identity uses the actual
+installed Chromium version, with HeadlessChrome normalized to Chrome. Service
+workers are bypassed without removing login data. The postinstall cache patch
+makes `none` genuinely skip the upstream HTML response-body reader; otherwise
+that unnecessary reader can reject during navigation and crash the process.
+Before changing this integration, verify fresh QR login and saved-session startup
+on ARM64. A nonempty `WEB_VERSION` remains an explicit local-cache override.

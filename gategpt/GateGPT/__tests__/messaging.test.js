@@ -320,22 +320,29 @@ describe('WhatsApp event handlers', () => {
 
 
 describe('WhatsApp startup', () => {
-  test('loads the tested app snapshot strictly instead of a logged-out landing page', () => {
+  test('loads the live app without a version pin or HTML cache', () => {
     initMessaging({});
     const options = wweb.__clients.at(-1).options;
-    const snapshot = require('../whatsappWebVersion');
-    expect(options.webVersion).toBe(snapshot.version);
-    expect(options.webVersionCache).toEqual({ type: 'local', path: snapshot.cachePath, strict: true });
+    expect(options.webVersion).toBeUndefined();
+    expect(options.webVersionCache).toEqual({ type: 'none' });
+    expect(options.userAgent).toBe(false);
   });
 
-  test('bypasses stale service workers in existing profiles without resetting auth', async () => {
-    initMessaging({});
-    const auth = wweb.__clients.at(-1).options.authStrategy;
-    const setBypassServiceWorker = jest.fn().mockResolvedValue(undefined);
-    auth.client = { pupPage: { setBypassServiceWorker } };
-    await auth.afterBrowserInitialized();
-    expect(setBypassServiceWorker).toHaveBeenCalledWith(true);
-  });
+  test.each(['HeadlessChrome/149.0.0.0', 'Chrome/150.0.0.0'])(
+    'preserves the actual browser version with %s and bypasses stale service workers', async browserToken => {
+      initMessaging({});
+      const auth = wweb.__clients.at(-1).options.authStrategy;
+      const setBypassServiceWorker = jest.fn().mockResolvedValue(undefined);
+      const setUserAgent = jest.fn().mockResolvedValue(undefined);
+      auth.client = {
+        pupPage: { setBypassServiceWorker, setUserAgent },
+        pupBrowser: { userAgent: async () => `Mozilla/5.0 ${browserToken} Safari/537.36` }
+      };
+      await auth.afterBrowserInitialized();
+      expect(setBypassServiceWorker).toHaveBeenCalledWith(true);
+      expect(setUserAgent).toHaveBeenCalledWith(`Mozilla/5.0 ${browserToken.replace('HeadlessChrome/', 'Chrome/')} Safari/537.36`);
+    }
+  );
 
   test('reports startup failure without an unhandled rejection taking down the UI', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});

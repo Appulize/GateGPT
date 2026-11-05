@@ -7,14 +7,15 @@ const path = require('path');
 const { getConfig } = require('./config');
 const { sendPushoverNotification } = require('./notifications');
 const state = require('./state');
-const whatsappWeb = require('./whatsappWebVersion');
 
-// A saved profile's service worker otherwise overrides the pinned Web app HTML.
-// Bypass it through Puppeteer's supported API; keep cookies and login data intact.
-class CachedWebLocalAuth extends LocalAuth {
+// Always load the current app, not a stale service-worker response. Advertise
+// the installed Chromium version instead of the library's hardcoded Chrome 101.
+class BrowserLocalAuth extends LocalAuth {
   async afterBrowserInitialized() {
     await super.afterBrowserInitialized();
     await this.client.pupPage.setBypassServiceWorker(true);
+    const userAgent = await this.client.pupBrowser.userAgent();
+    await this.client.pupPage.setUserAgent(userAgent.replace('HeadlessChrome/', 'Chrome/'));
   }
 }
 
@@ -201,14 +202,11 @@ function initMessaging({ onMessage, onCall, onReady }) {
 
   fs.mkdirSync(SESSION_DIR, { recursive: true });
 
-  const configuredVersion = String(getConfig('WEB_VERSION', '')).trim();
-  const webVersion = configuredVersion || whatsappWeb.version;
+  const webVersion = String(getConfig('WEB_VERSION', '')).trim();
   const clientOptions = {
-    authStrategy: new CachedWebLocalAuth({ dataPath: SESSION_DIR }),
-    webVersion,
-    ...(!configuredVersion || configuredVersion === whatsappWeb.version ? {
-      webVersionCache: { type: 'local', path: whatsappWeb.cachePath, strict: true }
-    } : {}),
+    authStrategy: new BrowserLocalAuth({ dataPath: SESSION_DIR }),
+    userAgent: false,
+    webVersionCache: { type: webVersion ? 'local' : 'none' },
     puppeteer: {
       headless: true,
       args: [
