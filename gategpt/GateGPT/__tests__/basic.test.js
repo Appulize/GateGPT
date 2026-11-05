@@ -244,6 +244,97 @@ describe('delivery conversation', () => {
     expect(getChat).not.toHaveBeenCalled();
   });
 
+  test('alerts the owner and informs a new sender of an unavailable image', async () => {
+    const chat = { ...messaging.__chat, id: { _serialized: '12345@c.us' }, markUnread: jest.fn() };
+    const message = createMessage('', {
+      type: 'image',
+      hasMedia: true,
+      timestamp: Math.floor(Date.now() / 1000),
+      downloadMedia: jest.fn().mockResolvedValue(undefined),
+      reload: jest.fn().mockResolvedValue(undefined),
+      getChat: async () => chat
+    });
+    messaging.sendAuto.mockClear();
+    sendPushoverNotification.mockClear();
+
+    await messaging.__handlers.onMessage(message);
+
+    expect(message.downloadMedia).toHaveBeenCalledTimes(3);
+    expect(message.reload).toHaveBeenCalledTimes(2);
+    expect(sendPushoverNotification).toHaveBeenCalledWith(
+      'GateGPT',
+      expect.stringContaining('Failed to download image from 12345@c.us')
+    );
+    expect(messaging.sendAuto).toHaveBeenCalledWith(
+      chat,
+      "Sorry, I couldn't receive your image."
+    );
+    expect(chat.markUnread).toHaveBeenCalledTimes(1);
+  });
+
+  test('processes an image after WhatsApp finishes fetching it', async () => {
+    const chat = { ...messaging.__chat, id: { _serialized: '54321@c.us' } };
+    const imageData = Buffer.from('image').toString('base64');
+    const message = createMessage('', {
+      type: 'image',
+      hasMedia: true,
+      caption: 'photo',
+      downloadMedia: jest.fn()
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce({ data: imageData, mimetype: 'image/jpeg' }),
+      reload: jest.fn().mockResolvedValue(undefined),
+      getChat: async () => chat
+    });
+    messaging.sendAuto.mockClear();
+
+    await messaging.__handlers.onMessage(message);
+
+    expect(message.downloadMedia).toHaveBeenCalledTimes(2);
+    expect(message.reload).toHaveBeenCalledTimes(1);
+    expect(message.images).toEqual([imageData]);
+    expect(message.type).toBe('chat');
+    expect(messaging.sendAuto).not.toHaveBeenCalled();
+  });
+
+  test('does not process a replayed image after a restart, even if it is now downloadable', async () => {
+    const chat = { ...messaging.__chat, id: { _serialized: '67890@c.us' } };
+    const downloadMedia = jest.fn().mockResolvedValue({ data: 'aW1hZ2U=', mimetype: 'image/jpeg' });
+    messaging.sendAuto.mockClear();
+    sendPushoverNotification.mockClear();
+
+    await messaging.__handlers.onMessage(createMessage('', {
+      type: 'image',
+      timestamp: Math.floor(Date.now() / 1000) - 120,
+      downloadMedia,
+      getChat: async () => chat
+    }));
+
+    expect(downloadMedia).not.toHaveBeenCalled();
+    expect(messaging.sendAuto).not.toHaveBeenCalled();
+    expect(sendPushoverNotification).not.toHaveBeenCalled();
+  });
+
+  test('alerts the owner and courier when a new voice message cannot be downloaded', async () => {
+    const chat = { ...messaging.__chat, id: { _serialized: '98765@c.us' }, markUnread: jest.fn() };
+    const message = createMessage('', {
+      type: 'ptt',
+      timestamp: Math.floor(Date.now() / 1000),
+      downloadMedia: jest.fn().mockResolvedValue(undefined),
+      getChat: async () => chat
+    });
+    messaging.sendAuto.mockClear();
+    sendPushoverNotification.mockClear();
+
+    await messaging.__handlers.onMessage(message);
+
+    expect(sendPushoverNotification).toHaveBeenCalledWith(
+      'GateGPT',
+      expect.stringContaining('Failed to download voice message from 98765@c.us')
+    );
+    expect(messaging.sendAuto).toHaveBeenCalledWith(chat, "Sorry, I couldn't receive your voice message.");
+    expect(chat.markUnread).toHaveBeenCalledTimes(1);
+  });
+
   test('still transcribes ignored voice messages and sends Whisper pushover', async () => {
     transcribeWithWhisper.mockReset();
     sendPushoverNotification.mockReset();

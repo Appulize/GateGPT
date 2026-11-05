@@ -1,5 +1,5 @@
 /*********************************************************************
- * This is GateGPT v1.5.7 first created by Maciej Swic on 2025-04-25.
+ * This is GateGPT v1.5.8 first created by Maciej Swic on 2025-04-25.
  * Please see the LICENSE file.
 *********************************************************************/
 
@@ -33,6 +33,7 @@ const {
 const { setStatus } = require('./deliveryLog');
 const { resolveChatPrimaryId, chatRawId, isGroupJid } = require('./chatIdentity');
 const { enableInstantMode } = require('./instantMode');
+const { isGateConfigured } = require('./gateConfig');
 const {
   isChannelMessage,
   isChannelChatError,
@@ -58,6 +59,7 @@ fs.watchFile(CONFIG_PATH, { interval: 1000 }, () => {
 });
 
 const conversations = new Map();
+const serviceStartedAt = Math.floor(Date.now() / 1000);
 let ignoredChats = new Set();
 const ignorePath = path.join(DATA_DIR, getConfig('IGNORE_FILE', 'ignored-chats.json'));
 
@@ -90,6 +92,8 @@ async function handleMessage(message) {
     isChannelMessage(message) ||
     isStatusBroadcastMessage(message)
   ) return;
+  // WhatsApp can replay old messages after a restart; do not answer a courier twice.
+  if (!message.fromMe && message.timestamp < serviceStartedAt - 60) return;
 
   let chat;
   try {
@@ -127,7 +131,20 @@ async function handleMessage(message) {
       console.log(`🔇 Muted chat, skipping Whisper transcription: ${chatId}`);
       return;
     }
-    const media = await downloadMessageMedia(message);
+    let media;
+    try {
+      media = await downloadMessageMedia(message);
+    } catch (err) {
+      console.error('❌ Failed to download voice message:', err.message);
+      if (!message.fromMe && message.timestamp >= serviceStartedAt - 60) {
+        sendPushoverNotification('GateGPT', `❌ Failed to download voice message from ${chatId}: ${err.message}`);
+        if (!ignoredChats.has(chatId) && !isGroupJid(rawChatId)) {
+          await sendAuto(chat, "Sorry, I couldn't receive your voice message.");
+          await chat.markUnread();
+        }
+      }
+      return;
+    }
     const binaryData = Buffer.from(media.data, 'base64');
     const filePath = path.resolve(DATA_DIR, 'temp_audio.ogg');
     fs.writeFileSync(filePath, binaryData);
@@ -149,14 +166,20 @@ async function handleMessage(message) {
     return;
   }
 
-  if (message.type === 'image' && message.hasMedia) {
+  if (message.type === 'image') {
     try {
-      const media = await message.downloadMedia();
+      const media = await downloadMessageMedia(message, { kind: 'image' });
       message.images = [media.data];
       message.body = (message.caption || '').trim();
       message.type = 'chat';
     } catch (err) {
       console.error('❌ Failed to download image:', err.message);
+      if (!message.fromMe && message.timestamp >= serviceStartedAt - 60) {
+        sendPushoverNotification('GateGPT', `❌ Failed to download image from ${chatId}: ${err.message}`);
+        await sendAuto(chat, "Sorry, I couldn't receive your image.");
+        await chat.markUnread();
+      }
+      return;
     }
   }
 
@@ -234,6 +257,9 @@ async function handleAIResponse(chat, convo) {
   console.log(`💬 Sending GPT reply to ${convo.chatId}`);
   const { reply, actions } = await askChatGPT(convo.messages);
   let trimmed = reply;
+  if (!isGateConfigured() && trimmed === 'open_gate') {
+    trimmed = "Sorry, I can't open the gate.";
+  }
 
   for (const action of actions) {
     switch (action.name) {

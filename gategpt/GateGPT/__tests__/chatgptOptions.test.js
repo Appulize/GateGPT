@@ -39,4 +39,31 @@ describe('askChatGPT GPT-5 options', () => {
     expect(request.reasoning_effort).toBe('minimal');
     expect(request.verbosity).toBe('high');
   });
+
+  test('does not offer or execute gate control without both webhooks', async () => {
+    process.env.GATE_OPEN_URL = '';
+    process.env.GATE_CLOSE_URL = '';
+
+    const openaiMock = {
+      chat: {
+        completions: {
+          create: jest.fn().mockResolvedValue({
+            choices: [{ message: { content: '', tool_calls: [
+              { function: { name: 'open_gate', arguments: '{}' } }
+            ] } }]
+          })
+        }
+      }
+    };
+    jest.resetModules();
+    jest.doMock('../openaiClient', () => openaiMock);
+
+    const { askChatGPT } = require('../chatgpt');
+    const result = await askChatGPT([{ body: 'Please open the gate', fromMe: false }]);
+    const request = openaiMock.chat.completions.create.mock.calls[0][0];
+
+    expect(request.tools.map(tool => tool.function.name)).not.toContain('open_gate');
+    expect(request.messages[0].content).toContain('Gate control is unavailable.');
+    expect(result.actions).toEqual([]);
+  });
 });

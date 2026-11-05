@@ -1,6 +1,6 @@
 {
-  "GATE_OPEN_URL": "https://your.server.com/api/webhook/open-gate",
-  "GATE_CLOSE_URL": "https://your.server.com/api/webhook/close-gate",
+  "GATE_OPEN_URL": "",
+  "GATE_CLOSE_URL": "",
   "OPENAI_API_KEY": "You can create a key here https://platform.openai.com/settings/organization/api-keys",
   "PUSHOVER_TOKEN": "Create an application on pushover.net and copy its API token here",
   "PUSHOVER_USER": "Your user key from https://pushover.net",

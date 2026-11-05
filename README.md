@@ -27,7 +27,7 @@ Warning! The WhatsApp TOS prohibits the use of bots on personal accounts. GateGP
 - WhatsApp account (must scan QR code on first login)
 - Pushover account (for notifications)
 - OpenAI API key (for GPT-4.1 and Whisper)
-- Home Assistant webhook URLs (or equivalent endpoints for gate control)
+- Optional Home Assistant webhook URLs (or equivalent endpoints for gate control)
 
 **AND**
 
@@ -68,7 +68,7 @@ Then edit `config.json` to include your own values:
 
 - `OPENAI_API_KEY` – Get this from https://platform.openai.com/
 - `PUSHOVER_TOKEN` / `PUSHOVER_USER` – From https://pushover.net/
-- `GATE_OPEN_URL` / `GATE_CLOSE_URL` – Your webhook endpoints
+- `GATE_OPEN_URL` / `GATE_CLOSE_URL` – Your webhook endpoints; leave both blank to disable gate control and its AI tool
 - Edit the `CHATGPT_SYSTEM_PROMPT` and pay attention to the very end where the bot can be asked for the location. This is safe where i live - you may want to remove it.
 
 3. **Run the installation script**

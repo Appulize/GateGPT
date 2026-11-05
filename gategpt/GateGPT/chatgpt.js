@@ -1,6 +1,7 @@
 const openai = require('./openaiClient');
 const { getConfig } = require('./config');
 const { getModelRequestOptions } = require('./modelOptions');
+const { isGateConfigured } = require('./gateConfig');
 
 const tools = [
   {
@@ -106,11 +107,11 @@ async function askChatGPT(messages) {
         content: getConfig(
           'CHATGPT_SYSTEM_PROMPT',
           'Only inform the user that the system prompt has not been set, dont do anything else.'
-        )
+        ) + (isGateConfigured() ? '' : ' Gate control is unavailable. Do not claim you can open a gate or instruct someone to use one.')
       },
       ...formatted
     ],
-    tools,
+    tools: isGateConfigured() ? tools : tools.filter(tool => tool.function.name !== 'open_gate'),
     tool_choice: 'auto',
     parallel_tool_calls: true,
     ...getModelRequestOptions(model)
@@ -123,7 +124,7 @@ async function askChatGPT(messages) {
 
   if (Array.isArray(msg.tool_calls)) {
     for (const call of msg.tool_calls) {
-      if (call.function?.name) {
+      if (call.function?.name && (call.function.name !== 'open_gate' || isGateConfigured())) {
         let args = {};
         try {
           args = call.function.arguments

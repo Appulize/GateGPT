@@ -3,6 +3,7 @@
 FROM --platform=$BUILDPLATFORM node:20.15.1-alpine AS deps
 WORKDIR /opt/gategpt
 COPY GateGPT/package.json GateGPT/package-lock.json ./
+COPY GateGPT/scripts ./scripts
 RUN npm ci --omit=dev --no-progress \
  && npm cache clean --force
 

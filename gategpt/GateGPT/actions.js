@@ -5,6 +5,7 @@ const { sendAuto, Location } = require('./messaging');
 const { getTrackingsForPhone, removeTrackingForPhone } = require('./otp');
 const { setStatus } = require('./deliveryLog');
 const { enableInstantMode } = require('./instantMode');
+const { isGateConfigured } = require('./gateConfig');
 
 async function sendLocation(chat) {
   try {
@@ -31,6 +32,13 @@ async function sendLocation(chat) {
 }
 
 async function openGate(chat, convo) {
+  if (!isGateConfigured()) {
+    console.error('❌ Gate open requested without configured webhooks');
+    sendPushoverNotification('GateGPT', '❌ Gate open requested without configured webhooks');
+    await sendAuto(chat, "Sorry, I can't open the gate.");
+    await chat.markUnread();
+    return;
+  }
   try {
     await axios.post(getConfig('GATE_OPEN_URL'), {});
     await sendAuto(

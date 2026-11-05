@@ -3,6 +3,8 @@
 jest.mock('axios', () => ({ post: jest.fn().mockResolvedValue({}) }));
 jest.mock('../config', () => ({
   getConfig: jest.fn((key, defaultValue) => {
+    if (key === 'GATE_OPEN_URL') return 'https://example.invalid/open';
+    if (key === 'GATE_CLOSE_URL') return 'https://example.invalid/close';
     if (key === 'AUTO_CLOSE_DELAY_MS') return 1000;
     if (key === 'INSTANT_MODE_DURATION_MS') return 5000;
     return defaultValue;
@@ -57,5 +59,16 @@ describe('gate actions', () => {
 
     await jest.advanceTimersByTimeAsync(4000);
     expect(convo.instant).toBe(false);
+  });
+
+  test('does not call a webhook when gate control is unconfigured', async () => {
+    const { getConfig } = require('../config');
+    getConfig.mockImplementation((key, defaultValue) => key.startsWith('GATE_') ? '' : defaultValue);
+    const chat = { markUnread: jest.fn() };
+
+    await openGate(chat, {});
+
+    expect(axios.post).not.toHaveBeenCalled();
+    expect(chat.markUnread).toHaveBeenCalledTimes(1);
   });
 });
