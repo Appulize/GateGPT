@@ -7,11 +7,22 @@ const path = require('path');
 const { getConfig } = require('./config');
 const { sendPushoverNotification } = require('./notifications');
 const state = require('./state');
+const whatsappWeb = require('./whatsappWebVersion');
+
+// A saved profile's service worker otherwise overrides the pinned Web app HTML.
+// Bypass it through Puppeteer's supported API; keep cookies and login data intact.
+class CachedWebLocalAuth extends LocalAuth {
+  async afterBrowserInitialized() {
+    await super.afterBrowserInitialized();
+    await this.client.pupPage.setBypassServiceWorker(true);
+  }
+}
 
 const autoMsgIds = new Set();
 let client;
 let ready = false;
 let qrId = 0;
+let startupError = null;
 
 /**
  * Current WhatsApp Web builds no longer populate `_serialized` on message keys,
@@ -190,9 +201,14 @@ function initMessaging({ onMessage, onCall, onReady }) {
 
   fs.mkdirSync(SESSION_DIR, { recursive: true });
 
-  const webVersion = String(getConfig('WEB_VERSION', '')).trim();
+  const configuredVersion = String(getConfig('WEB_VERSION', '')).trim();
+  const webVersion = configuredVersion || whatsappWeb.version;
   const clientOptions = {
-    authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
+    authStrategy: new CachedWebLocalAuth({ dataPath: SESSION_DIR }),
+    webVersion,
+    ...(!configuredVersion || configuredVersion === whatsappWeb.version ? {
+      webVersionCache: { type: 'local', path: whatsappWeb.cachePath, strict: true }
+    } : {}),
     puppeteer: {
       headless: true,
       args: [
@@ -259,11 +275,17 @@ function initMessaging({ onMessage, onCall, onReady }) {
   if (onCall) client.on('incoming_call', guardHandler('incoming_call', onCall));
   if (onMessage) client.on('message_create', guardHandler('message_create', onMessage));
 
-  client.initialize();
+  startupError = null;
+  Promise.resolve(client.initialize()).catch(err => {
+    ready = false;
+    startupError = 'WhatsApp failed to start. Check the GateGPT logs, then restart the add-on.';
+    console.error('❌ WhatsApp startup failed:', err?.stack || err);
+    state.emit('update');
+  });
 }
 
 function getStatus() {
-  return { ready, qrId };
+  return { ready, qrId, startupError };
 }
 
 module.exports = {

@@ -154,3 +154,6 @@ gategpt/GateGPT/deliveries.json
 gategpt/GateGPT/test/live-fixtures/*
 !gategpt/GateGPT/test/live-fixtures/README.md
 gategpt/GateGPT/test/live-report.json
+
+# Verified public WhatsApp Web snapshot, downloaded by postinstall.
+gategpt/GateGPT/whatsapp-web-cache/

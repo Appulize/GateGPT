@@ -271,6 +271,8 @@ const queueRender = () => {
 
 function handleState(data) {
   latestState = data;
+  document.getElementById('login-status').textContent = data.startupError ||
+    (data.qrId ? 'Scan this QR code in WhatsApp → Linked devices.' : 'Waiting for WhatsApp login…');
   queueRender();
   if (data.ready) {
     document.getElementById('qr').classList.add('d-none');
@@ -278,7 +280,9 @@ function handleState(data) {
       .Tab.getOrCreateInstance(document.querySelector('#dashboard-tab'))
       .show();
   } else {
-    if (data.qrId !== lastQrId) {
+    if (data.startupError || !data.qrId) {
+      document.getElementById('qr').classList.add('d-none');
+    } else if (data.qrId !== lastQrId) {
       updateQr();
       lastQrId = data.qrId;
     }

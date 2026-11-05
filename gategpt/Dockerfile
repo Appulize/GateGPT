@@ -5,6 +5,7 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 WORKDIR /opt/gategpt
 COPY GateGPT/package.json GateGPT/package-lock.json ./
 COPY GateGPT/scripts ./scripts
+COPY GateGPT/whatsappWebVersion.js ./
 RUN npm ci --omit=dev --no-progress \
  && npm cache clean --force
 
@@ -24,6 +25,7 @@ RUN apk add --no-cache \
 WORKDIR /opt/gategpt
 COPY GateGPT/package.json GateGPT/package-lock.json ./
 COPY --from=deps /opt/gategpt/node_modules ./node_modules
+COPY --from=deps /opt/gategpt/whatsapp-web-cache ./whatsapp-web-cache
 COPY GateGPT/ .
 
 ENV NODE_ENV=production

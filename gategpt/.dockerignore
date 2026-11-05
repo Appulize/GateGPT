@@ -17,3 +17,5 @@ GateGPT/qr.png
 **/*.log
 **/logs
 **/temp_audio.ogg
+
+GateGPT/whatsapp-web-cache

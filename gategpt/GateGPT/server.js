@@ -19,7 +19,12 @@ function initServer() {
   app.use(express.static(PUBLIC_DIR));
   app.use('/bootstrap', express.static(path.join(__dirname, 'node_modules', 'bootstrap', 'dist')));
   app.use('/bootstrap-icons', express.static(path.join(__dirname, 'node_modules', 'bootstrap-icons', 'font')));
-  app.get('/qr.png', (req, res) => res.sendFile(QR_PNG_PATH));
+  app.get('/qr.png', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const { ready, qrId, startupError } = getStatus();
+    if (ready || !qrId || startupError) return res.sendStatus(404);
+    res.sendFile(QR_PNG_PATH);
+  });
 
   const getState = () => ({
     ...getStatus(),

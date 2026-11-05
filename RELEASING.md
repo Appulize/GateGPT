@@ -41,3 +41,11 @@ incompatible transitive major versions merely to make the advisory count smaller
 When upgrading GitHub Actions, check every configured input against the new action
 manifest and migration docs. Bake v7 uses `source: ./gategpt`, not `workdir`; this
 must preserve the context directory so `gategpt/.dockerignore` stays effective.
+
+WhatsApp Web startup uses the checksum-verified app snapshot declared in
+`gategpt/GateGPT/whatsappWebVersion.js`, installed by npm postinstall and copied
+into the image. Do not select snapshots whose root is `whatsapp-web-logged-out`:
+they are landing pages without the Socket module. Before changing the pin,
+verify QR generation in a fresh ARM64 browser and authenticated startup using
+the saved profile. Keep QR login in the HA add-on, not a separate helper service.
+A nonempty `WEB_VERSION` remains an explicit operator override of the default pin.

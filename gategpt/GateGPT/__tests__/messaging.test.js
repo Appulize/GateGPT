@@ -12,19 +12,20 @@ jest.mock('whatsapp-web.js', () => {
   const clients = [];
 
   class Client extends EventEmitter {
-    constructor() {
+    constructor(options) {
       super();
+      this.options = options;
       this.pupPage = { evaluate: jest.fn(async fn => fn()) };
       this.getChatById = jest.fn(async id => ({ id: { _serialized: id } }));
       this.sendMessage = jest.fn();
       clients.push(this);
     }
-    initialize() {}
+    initialize() { return Promise.resolve(); }
   }
 
   return {
     Client,
-    LocalAuth: class LocalAuth {},
+    LocalAuth: class LocalAuth { async afterBrowserInitialized() {} },
     Location: class Location {},
     __clients: clients
   };
@@ -42,7 +43,8 @@ const {
   isAutoMessage,
   getChatById,
   getChatForMessage,
-  installWhatsAppWebPatches
+  installWhatsAppWebPatches,
+  getStatus
 } = require('../messaging');
 
 // WhatsApp Web stopped populating `_serialized`; ids carry the parts instead.
@@ -265,10 +267,6 @@ describe('WhatsApp event handlers', () => {
     delete global.window;
   });
 
-  afterAll(() => {
-    fs.rmSync(sessionDir, { recursive: true, force: true });
-    delete process.env.SESSION_DIR;
-  });
 
   test('a failing message handler does not reject and is reported', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -318,4 +316,41 @@ describe('WhatsApp event handlers', () => {
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
   });
+});
+
+
+describe('WhatsApp startup', () => {
+  test('loads the tested app snapshot strictly instead of a logged-out landing page', () => {
+    initMessaging({});
+    const options = wweb.__clients.at(-1).options;
+    const snapshot = require('../whatsappWebVersion');
+    expect(options.webVersion).toBe(snapshot.version);
+    expect(options.webVersionCache).toEqual({ type: 'local', path: snapshot.cachePath, strict: true });
+  });
+
+  test('bypasses stale service workers in existing profiles without resetting auth', async () => {
+    initMessaging({});
+    const auth = wweb.__clients.at(-1).options.authStrategy;
+    const setBypassServiceWorker = jest.fn().mockResolvedValue(undefined);
+    auth.client = { pupPage: { setBypassServiceWorker } };
+    await auth.afterBrowserInitialized();
+    expect(setBypassServiceWorker).toHaveBeenCalledWith(true);
+  });
+
+  test('reports startup failure without an unhandled rejection taking down the UI', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const initSpy = jest.spyOn(wweb.Client.prototype, 'initialize')
+      .mockRejectedValueOnce(new Error('Socket unavailable'));
+    initMessaging({});
+    await Promise.resolve();
+    expect(getStatus()).toMatchObject({ ready: false, startupError: expect.stringContaining('failed to start') });
+    expect(errorSpy).toHaveBeenCalled();
+    initSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+});
+
+afterAll(() => {
+  fs.rmSync(sessionDir, { recursive: true, force: true });
+  delete process.env.SESSION_DIR;
 });
