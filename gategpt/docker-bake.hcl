@@ -1,4 +1,4 @@
-variable "GATEGPT_VERSION" { default = "1.5.9" }
+variable "GATEGPT_VERSION" { default = "1.5.10" }
 
 target "gategpt" {
   context    = "."
